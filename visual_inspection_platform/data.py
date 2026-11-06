@@ -25,19 +25,24 @@ class ImageRecords(Sequence[ImageRecord]):
         self.data_dir = Path(data_dir)
         self.split = split
 
-        objects = set(objects) if objects is not None else None
-        self.images = self.read_manifest(manifest, split, objects)
+        if not objects:
+            objects = None
+        elif isinstance(objects, str):
+            objects = {objects}
+        else:
+            objects = set(objects)
 
-    def read_manifest(
-        self, manifest: str | Path, split: str, objects: set[str] | None
-    ) -> list[ImageRecord]:
+        self.objects = objects
+        self.images = tuple(self.read_manifest(manifest))
+
+    def read_manifest(self, manifest: str | Path) -> list[ImageRecord]:
         result = []
         with open(manifest, encoding="utf-8") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
-                if row["split"] != split:
+                if row["split"] != self.split:
                     continue
-                if objects is not None and row["object"] not in objects:
+                if self.objects is not None and row["object"] not in self.objects:
                     continue
 
                 if row["mask"]:
