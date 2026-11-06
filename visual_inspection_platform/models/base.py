@@ -1,29 +1,26 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Self
 
-from pydantic import BaseModel, ConfigDict
-
-from visual_inspection_platform.types import Float32Vector, NumpyImageBatch
+from visual_inspection_platform.types import AnomalyMaps, AnomalyScores, ImageBatch
 from visual_inspection_platform.utils import generate_model_id
 
 from .manifest import ModelManifest, TrainingMetadata
 
 
-class InspectionRequest(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True, extra="forbid")
-
-    images: NumpyImageBatch
-
-
-class AnomalyPrediction(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True, extra="forbid")
-
-    scores: Float32Vector
-    anomaly_map: NumpyImageBatch | None
+@dataclass(frozen=True, slots=True)
+class InspectionRequest:
+    images: ImageBatch
 
 
-class Inspector(ABC):
+@dataclass(frozen=True, slots=True)
+class AnomalyPrediction:
+    scores: AnomalyScores
+    anomaly_maps: AnomalyMaps | None = None
+
+
+class AnomalyDetector(ABC):
     """Base interface for serializable anomaly prediction models."""
 
     MODEL_FAMILY: ClassVar[str]
@@ -42,7 +39,7 @@ class Inspector(ABC):
     @abstractmethod
     def predict(self, request: InspectionRequest) -> AnomalyPrediction:
         """
-        Generate AnomalyPredictions for a batch of users.
+        Generate AnomalyDetections for a batch of users.
         """
 
     @abstractmethod

@@ -6,13 +6,14 @@ from typing import overload, override
 
 
 @dataclass(frozen=True, slots=True)
-class ImageData:
+class ImageRecord:
     path: Path
     mask: Path | None
     label: str
+    category: str
 
 
-class ImageDataset(Sequence[ImageData]):
+class ImageRecords(Sequence[ImageRecord]):
     def __init__(
         self,
         manifest: str | Path,
@@ -24,12 +25,12 @@ class ImageDataset(Sequence[ImageData]):
         self.data_dir = Path(data_dir)
         self.split = split
 
-        objects = set(objects) if objects else None
+        objects = set(objects) if objects is not None else None
         self.images = self.read_manifest(manifest, split, objects)
 
     def read_manifest(
         self, manifest: str | Path, split: str, objects: set[str] | None
-    ) -> list[ImageData]:
+    ) -> list[ImageRecord]:
         result = []
         with open(manifest, encoding="utf-8") as handle:
             reader = csv.DictReader(handle)
@@ -45,7 +46,12 @@ class ImageDataset(Sequence[ImageData]):
                     mask = None
 
                 result.append(
-                    ImageData(path=self.data_dir / row["image"], mask=mask, label=row["label"])
+                    ImageRecord(
+                        path=self.data_dir / row["image"],
+                        mask=mask,
+                        label=row["label"],
+                        category=row["object"],
+                    )
                 )
 
         return result
@@ -55,13 +61,13 @@ class ImageDataset(Sequence[ImageData]):
         return len(self.images)
 
     @overload
-    def __getitem__(self, key: int) -> ImageData:
+    def __getitem__(self, key: int) -> ImageRecord:
         pass
 
     @overload
-    def __getitem__(self, key: slice) -> Sequence[ImageData]:
+    def __getitem__(self, key: slice) -> Sequence[ImageRecord]:
         pass
 
     @override
-    def __getitem__(self, key: int | slice) -> ImageData | Sequence[ImageData]:
+    def __getitem__(self, key: int | slice) -> ImageRecord | Sequence[ImageRecord]:
         return self.images[key]

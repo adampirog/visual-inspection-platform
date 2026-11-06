@@ -1,44 +1,20 @@
-from typing import Annotated
-
 import numpy as np
-from numpy.typing import NDArray
-from pydantic import AfterValidator
 
 
 # Convention - [batch_size, channels, height, width]
 
 
-def _image(value: NDArray[np.uint32]) -> NDArray[np.uint32]:
-    if value.dtype != np.dtype(np.uint32):
-        raise ValueError("array dtype must be uint32")
+# Decoded image: [H, W, C], RGB, values 0-255
+type RGBImage = np.ndarray[tuple[int, int, int], np.dtype[np.uint8]]
 
-    if value.ndim != 3:
-        raise ValueError("array must be three-dimensional")
+# Preprocessed model inputs: float32, channel-first
+type ModelImage = np.ndarray[tuple[int, int, int], np.dtype[np.float32]]
+type ImageBatch = np.ndarray[tuple[int, int, int, int], np.dtype[np.float32]]
 
-    return value
+# Model outputs
+type AnomalyScores = np.ndarray[tuple[int], np.dtype[np.float32]]
+type AnomalyMaps = np.ndarray[tuple[int, int, int], np.dtype[np.float32]]
 
-
-def _image_batch(value: NDArray[np.uint32]) -> NDArray[np.uint32]:
-    if value.dtype != np.dtype(np.uint32):
-        raise ValueError("array dtype must be uint32")
-
-    if value.ndim != 3:
-        raise ValueError("array must be four-dimensional")
-
-    return value
-
-
-def _float32_vector(value: NDArray[np.float32]) -> NDArray[np.float32]:
-    if value.dtype != np.dtype(np.float32):
-        raise ValueError("array dtype must be float32")
-
-    if value.ndim != 1:
-        raise ValueError("array must be one-dimensional")
-
-    return value
-
-
-NumpyImage = Annotated[NDArray[np.uint32], AfterValidator(_image)]
-NumpyImageBatch = Annotated[NDArray[np.uint32], AfterValidator(_image_batch)]
-
-Float32Vector = Annotated[NDArray[np.float32], AfterValidator(_float32_vector)]
+# Ground-truth annotations
+type SegmentationMask = np.ndarray[tuple[int, int], np.dtype[np.uint8]]
+type BinaryMask = np.ndarray[tuple[int, int], np.dtype[np.bool_]]
