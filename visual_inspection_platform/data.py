@@ -13,7 +13,7 @@ class ImageRecord:
     category: str
 
 
-class ImageRecords(Sequence[ImageRecord]):
+class ImageRecordsDataset(Sequence[ImageRecord]):
     def __init__(
         self,
         manifest: str | Path,
