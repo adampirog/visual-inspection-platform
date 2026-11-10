@@ -1,23 +1,11 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Self
 
-from visual_inspection_platform.types import AnomalyMaps, AnomalyScores, ImageBatch
+from visual_inspection_platform.types import AnomalyMaps, ImageBatch
 from visual_inspection_platform.utils import generate_model_id
 
 from .manifest import ModelManifest, TrainingMetadata
-
-
-@dataclass(frozen=True, slots=True)
-class InspectionRequest:
-    images: ImageBatch
-
-
-@dataclass(frozen=True, slots=True)
-class AnomalyPrediction:
-    scores: AnomalyScores
-    anomaly_maps: AnomalyMaps | None = None
 
 
 class AnomalyDetector(ABC):
@@ -37,7 +25,7 @@ class AnomalyDetector(ABC):
         self.training_metadata = training_metadata
 
     @abstractmethod
-    def predict(self, request: InspectionRequest) -> AnomalyPrediction:
+    def predict(self, images: ImageBatch) -> AnomalyMaps:
         """
         Generate AnomalyDetections for a batch of users.
         """
