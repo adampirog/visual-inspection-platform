@@ -7,6 +7,8 @@ from typing import overload, override
 
 @dataclass(frozen=True, slots=True)
 class ImageRecord:
+    """Path and annotations for a single image."""
+
     path: Path
     mask: Path | None
     label: str
@@ -14,6 +16,8 @@ class ImageRecord:
 
 
 class ImageRecordsDataset(Sequence[ImageRecord]):
+    """Sequence of image records loaded from a CSV manifest."""
+
     def __init__(
         self,
         manifest: str | Path,
@@ -36,6 +40,7 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
         self.images = tuple(self.read_manifest(manifest))
 
     def read_manifest(self, manifest: str | Path) -> list[ImageRecord]:
+        """Read records matching the selected split and categories."""
         result = []
         with open(manifest, encoding="utf-8") as handle:
             reader = csv.DictReader(handle)

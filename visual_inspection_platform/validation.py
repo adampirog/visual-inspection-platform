@@ -1,6 +1,6 @@
 import numpy as np
 
-from .types import AnomalyMaps, AnomalyScores, ImageBatch, RGBImage
+from .types import AnomalyMaps, ImageBatch, RGBImage
 
 
 def validate_rgb_image(image: RGBImage) -> None:
@@ -38,29 +38,13 @@ def validate_image_batch(images: ImageBatch) -> None:
         raise ValueError(f"Expected 3 channels, got {c}")
 
 
-def validate_prediction(
-    scores: AnomalyScores,
-    anomaly_maps: AnomalyMaps | None,
-    *,
-    batch_shape: tuple[int, int, int, int],
-) -> None:
-    """Validate standardized model output against the input batch."""
+def validate_prediction(maps: AnomalyMaps, *, batch_shape: tuple[int, int, int, int]) -> None:
+    """Validate continuous anomaly maps against the input batch."""
+    if not isinstance(maps, np.ndarray):
+        raise TypeError("Anomaly maps must be a NumPy array")
+
     n, _, h, w = batch_shape
-
-    if not isinstance(scores, np.ndarray):
-        raise TypeError("Scores must be a NumPy array")
-
-    if scores.dtype != np.float32 or scores.shape != (n,):
+    if maps.dtype != np.float32 or maps.shape != (n, h, w):
         raise ValueError(
-            f"Expected float32 scores with shape {(n,)}, got {scores.shape}, {scores.dtype}"
+            f"Expected float32 anomaly maps with shape {(n, h, w)}, got {maps.shape}, {maps.dtype}"
         )
-
-    if anomaly_maps is not None:
-        if not isinstance(anomaly_maps, np.ndarray):
-            raise TypeError("Anomaly maps must be a NumPy array")
-
-        if anomaly_maps.dtype != np.float32 or anomaly_maps.shape != (n, h, w):
-            raise ValueError(
-                f"Expected float32 anomaly maps with shape {(n, h, w)}, "
-                f"got {anomaly_maps.shape}, {anomaly_maps.dtype}"
-            )

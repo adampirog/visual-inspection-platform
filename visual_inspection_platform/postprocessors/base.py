@@ -8,6 +8,8 @@ from visual_inspection_platform.types import AnomalyMaps, BinaryMasks
 
 
 class PostprocessorManifest(BaseModel):
+    """Serialized postprocessor identity and configuration."""
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     kind: str
@@ -16,7 +18,7 @@ class PostprocessorManifest(BaseModel):
 
 
 class Postprocessor(ABC):
-    """Base interface for serializable anomaly prediction models."""
+    """Convert continuous anomaly maps into binary segmentation masks."""
 
     KIND: ClassVar[str]
     VERSION: ClassVar[str]
@@ -28,10 +30,11 @@ class Postprocessor(ABC):
     def get_params(self) -> dict[str, JsonValue]: ...
 
     @abstractmethod
-    def _save(self, path: Path) -> None: ...
+    def _save(self, path: Path) -> None:
+        """Save additional state, if any."""
 
     def save(self, path: str | Path) -> PostprocessorManifest:
-        """Serialize the fitted model to disk."""
+        """Save postprocessor state and return its manifest."""
 
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
@@ -41,18 +44,21 @@ class Postprocessor(ABC):
         return PostprocessorManifest(kind=self.KIND, version=self.VERSION, params=self.get_params())
 
     @classmethod
-    @abstractmethod
-    def _load(cls, path: Path, manifest: PostprocessorManifest) -> Self: ...
+    def _load(cls, postprocessor: Self, path: Path) -> None:
+        """Restore postprocessor additional state, if any"""
+        return
 
     @classmethod
     def load(cls, path: str | Path, manifest: PostprocessorManifest) -> Self:
+        """Load a postprocessor from its artifact."""
         path = Path(path)
 
         if manifest.kind != cls.KIND:
             raise ValueError(
-                "Cannot load saved postprocessor with "
-                f"Manifest(kind={manifest.kind}) "
-                f"with class {cls.__name__}(KIND={cls.KIND})."
+                f"Postprocessor kind mismatch: expected '{cls.KIND}', got '{manifest.kind}'"
             )
 
-        return cls._load(path, manifest=manifest)
+        postprocessor = cls(**manifest.params)
+        cls._load(postprocessor, path)
+
+        return postprocessor

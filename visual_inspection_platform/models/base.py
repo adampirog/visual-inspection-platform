@@ -10,7 +10,7 @@ from .manifest import ModelManifest, TrainingMetadata
 
 
 class AnomalyDetector(ABC):
-    """Base interface for serializable anomaly prediction models."""
+    """Base class for anomaly-map inference and optional postprocessing."""
 
     MODEL_FAMILY: ClassVar[str]
     ARTIFACT_VERSION: ClassVar[str]
@@ -32,18 +32,18 @@ class AnomalyDetector(ABC):
 
     @abstractmethod
     def predict(self, images: ImageBatch) -> AnomalyMaps:
-        """
-        Generate AnomalyDetections for a batch of users.
-        """
+        """Predict continuous anomaly maps for a batch of images."""
 
     def predict_mask(self, maps: AnomalyMaps) -> BinaryMasks:
+        """Convert anomaly maps to binary masks using the postprocessor."""
         if self.postprocessor is None:
-            raise RuntimeError("Postprocessor is not initiated.")
+            raise RuntimeError("No postprocessor configured")
 
         return self.postprocessor(maps)
 
     @abstractmethod
-    def _save(self, path: Path) -> None: ...
+    def _save(self, path: Path) -> None:
+        """Save model-specific parameters."""
 
     def save(self, path: str | Path) -> None:
         """Serialize the fitted model to disk."""
@@ -68,25 +68,26 @@ class AnomalyDetector(ABC):
 
     @classmethod
     @abstractmethod
-    def _load(cls, path: Path, manifest: ModelManifest) -> Self: ...
+    def _load(cls, path: Path, manifest: ModelManifest) -> Self:
+        """Restore model-specific parameters."""
 
     @classmethod
     def load(cls, path: str | Path) -> Self:
-        """Load a serialized Inspector from disk."""
+        """Load a serialized model from disk."""
 
         path = Path(path)
         manifest = ModelManifest.load(path / "MANIFEST.json")
 
         if manifest.model_family != cls.MODEL_FAMILY:
             raise ValueError(
-                f"Cannot load saved model with Manifest(model_family={manifest.model_family})"
-                f" with class {cls.__name__}(model_family={cls.MODEL_FAMILY})."
+                f"Model family mismatch: expected '{cls.MODEL_FAMILY}', "
+                f"got '{manifest.model_family}'"
             )
 
         model = cls._load(path, manifest=manifest)
 
         if model.model_id != manifest.model_id:
-            raise RuntimeError("'model_id' was overridden during loading.")
+            raise RuntimeError("Loaded model ID does not match manifest")
 
         if manifest.postprocessor is not None:
             postprocessor = get_postprocessor_class(manifest.postprocessor.kind).load(
