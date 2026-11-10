@@ -93,5 +93,7 @@ class AnomalyDetector(ABC):
                 path=path / "postprocessor", manifest=manifest.postprocessor
             )
             model.postprocessor = postprocessor
+        else:
+            model.postprocessor = None
 
         return model
