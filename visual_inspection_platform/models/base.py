@@ -18,9 +18,9 @@ class AnomalyDetector(ABC):
     def __init__(
         self,
         *,
-        postprocessor: Postprocessor,
         model_id: str | None = None,
         training_metadata: TrainingMetadata | None = None,
+        postprocessor: Postprocessor | None = None,
     ) -> None:
         if model_id is None:
             self.model_id = generate_model_id(model_family=type(self).MODEL_FAMILY)
@@ -37,6 +37,9 @@ class AnomalyDetector(ABC):
         """
 
     def predict_mask(self, maps: AnomalyMaps) -> BinaryMasks:
+        if self.postprocessor is None:
+            raise RuntimeError("Postprocessor is not initiated.")
+
         return self.postprocessor(maps)
 
     @abstractmethod
@@ -50,17 +53,22 @@ class AnomalyDetector(ABC):
 
         self._save(path)
 
+        if self.postprocessor is not None:
+            postprocessor_manifest = self.postprocessor.save(path / "postprocessor")
+        else:
+            postprocessor_manifest = None
+
         ModelManifest(
             model_id=self.model_id,
             training_metadata=self.training_metadata,
-            postprocessor=self.postprocessor.save(path / "postprocessor"),
+            postprocessor=postprocessor_manifest,
             model_family=self.MODEL_FAMILY,
             artifact_version=self.ARTIFACT_VERSION,
         ).save(path / "MANIFEST.json")
 
     @classmethod
     @abstractmethod
-    def _load(cls, path: Path, manifest: ModelManifest, postprocessor: Postprocessor) -> Self: ...
+    def _load(cls, path: Path, manifest: ModelManifest) -> Self: ...
 
     @classmethod
     def load(cls, path: str | Path) -> Self:
@@ -75,12 +83,15 @@ class AnomalyDetector(ABC):
                 f" with class {cls.__name__}(model_family={cls.MODEL_FAMILY})."
             )
 
-        postprocessor = get_postprocessor_class(manifest.postprocessor.kind).load(
-            path=path / "postprocessor", manifest=manifest.postprocessor
-        )
-        model = cls._load(path, manifest=manifest, postprocessor=postprocessor)
+        model = cls._load(path, manifest=manifest)
 
         if model.model_id != manifest.model_id:
             raise RuntimeError("'model_id' was overridden during loading.")
+
+        if manifest.postprocessor is not None:
+            postprocessor = get_postprocessor_class(manifest.postprocessor.kind).load(
+                path=path / "postprocessor", manifest=manifest.postprocessor
+            )
+            model.postprocessor = postprocessor
 
         return model

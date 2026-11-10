@@ -24,7 +24,7 @@ class ModelManifest(BaseModel):
 
     model_id: str
     model_family: str
-    postprocessor: PostprocessorManifest
+    postprocessor: PostprocessorManifest | None = None
     training_metadata: TrainingMetadata | None = None
     artifact_version: str
     package_version: str = __version__

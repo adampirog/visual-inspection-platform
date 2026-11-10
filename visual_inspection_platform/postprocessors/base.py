@@ -22,8 +22,7 @@ class Postprocessor(ABC):
     VERSION: ClassVar[str]
 
     @abstractmethod
-    def __call__(self, maps: AnomalyMaps) -> BinaryMasks:
-        pass
+    def __call__(self, maps: AnomalyMaps) -> BinaryMasks: ...
 
     @abstractmethod
     def get_params(self) -> dict[str, JsonValue]: ...
