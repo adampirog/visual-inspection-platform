@@ -3,6 +3,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, JsonValue
 
+from visual_inspection_platform.postprocessors import PostprocessorManifest
 from visual_inspection_platform.version import __version__
 
 
@@ -23,6 +24,7 @@ class ModelManifest(BaseModel):
 
     model_id: str
     model_family: str
+    postprocessor: PostprocessorManifest
     training_metadata: TrainingMetadata | None = None
     artifact_version: str
     package_version: str = __version__
