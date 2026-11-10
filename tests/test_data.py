@@ -1,6 +1,6 @@
 import pytest
 
-from visual_inspection_platform.data import ImageRecord, ImageRecords
+from visual_inspection_platform.data import ImageRecord, ImageRecordsDataset
 
 
 @pytest.fixture
@@ -18,22 +18,27 @@ def manifest(tmp_path):
 
 def test_manifest_loading(manifest, tmp_path):
     data_dir = tmp_path / "raw"
-    records = ImageRecords(manifest, data_dir)
+    dataset = ImageRecordsDataset(manifest, data_dir)
 
-    assert len(records) == 2
-    assert records[0] == ImageRecord(
+    assert len(dataset) == 2
+    assert dataset[0] == ImageRecord(
         path=data_dir / "cashew/normal/001.JPG", mask=None, label="normal", category="cashew"
     )
-    assert records[:1] == (records[0],)
+    assert dataset[:1] == (dataset[0],)
 
 
 def test_split_and_category_filtering(manifest, tmp_path):
-    records = ImageRecords(manifest, tmp_path, split="test", objects="cashew")
+    dataset = ImageRecordsDataset(manifest, tmp_path, split="test", objects="cashew")
 
-    assert len(records) == 1
-    assert records[0].label == "anomaly"
-    assert records[0].mask == tmp_path / "cashew/masks/002.png"
+    assert len(dataset) == 1
+    assert dataset[0].label == "anomaly"
+    assert dataset[0].mask == tmp_path / "cashew/masks/002.png"
 
-    assert len(ImageRecords(manifest, tmp_path, objects={"pcb1"})) == 1
-    assert len(ImageRecords(manifest, tmp_path, objects=[])) == 2
-    assert len(ImageRecords(manifest, tmp_path, objects=None)) == 2
+    assert len(ImageRecordsDataset(manifest, tmp_path, objects={"pcb1"})) == 1
+    assert len(ImageRecordsDataset(manifest, tmp_path, objects=[])) == 2
+    assert len(ImageRecordsDataset(manifest, tmp_path, objects=None)) == 2
+
+
+def test_empty_selection(manifest, tmp_path):
+    dataset = ImageRecordsDataset(manifest, tmp_path, objects="unknown")
+    assert len(dataset) == 0
