@@ -24,9 +24,6 @@ class ThresholdPostprocessor(Postprocessor):
     def get_params(self) -> dict:
         return {"threshold": self.threshold}
 
-    def _save(self, path: Path) -> None:
-        pass
-
 
 class SpatialPostprocessor(Postprocessor):
     KIND = "spatial"
@@ -47,9 +44,8 @@ class SpatialPostprocessor(Postprocessor):
         assert self.thresholds is not None
         np.save(path / "thresholds.npy", self.thresholds)
 
-    @classmethod
-    def _load(cls, postprocessor, path: Path) -> None:
-        postprocessor.thresholds = np.load(path / "thresholds.npy", allow_pickle=False)
+    def _load(self, path: Path) -> None:
+        self.thresholds = np.load(path / "thresholds.npy", allow_pickle=False)
 
 
 def test_threshold_roundtrip(tmp_path):

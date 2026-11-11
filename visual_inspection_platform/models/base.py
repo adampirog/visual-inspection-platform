@@ -89,6 +89,8 @@ class AnomalyDetector(ABC):
         if model.model_id != manifest.model_id:
             raise RuntimeError("Loaded model ID does not match manifest")
 
+        model.training_metadata = manifest.training_metadata
+
         if manifest.postprocessor is not None:
             postprocessor = get_postprocessor_class(manifest.postprocessor.kind).load(
                 path=path / "postprocessor", manifest=manifest.postprocessor

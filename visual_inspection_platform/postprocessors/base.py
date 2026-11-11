@@ -29,9 +29,9 @@ class Postprocessor(ABC):
     @abstractmethod
     def get_params(self) -> dict[str, JsonValue]: ...
 
-    @abstractmethod
     def _save(self, path: Path) -> None:
         """Save additional state, if any."""
+        return
 
     def save(self, path: str | Path) -> PostprocessorManifest:
         """Save postprocessor state and return its manifest."""
@@ -43,8 +43,7 @@ class Postprocessor(ABC):
 
         return PostprocessorManifest(kind=self.KIND, version=self.VERSION, params=self.get_params())
 
-    @classmethod
-    def _load(cls, postprocessor: Self, path: Path) -> None:
+    def _load(self, path: Path) -> None:
         """Restore postprocessor additional state, if any"""
         return
 
@@ -59,6 +58,6 @@ class Postprocessor(ABC):
             )
 
         postprocessor = cls(**manifest.params)
-        cls._load(postprocessor, path)
+        postprocessor._load(path)
 
         return postprocessor
