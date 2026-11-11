@@ -1,15 +1,20 @@
 """Evaluate anomaly segmentation predictions by object category."""
 
+from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TypedDict
 
 import numpy as np
+from tqdm.auto import tqdm
 
 from visual_inspection_platform.postprocessors import Postprocessor
 from visual_inspection_platform.types import AnomalyMaps, BinaryMasks
 
 from .metrics import _binary_counts, _binary_metrics, _ranking_metrics
+
+
+MetricsDict = dict[str, float]
 
 
 class EvaluationBatch(TypedDict):
@@ -36,7 +41,7 @@ class Accumulator:
             self.fp += fp
             self.fn += fn
 
-    def result(self, include_binary: bool) -> dict[str, dict[str, float]]:
+    def result(self, include_binary: bool) -> dict[str, MetricsDict]:
         cont = _ranking_metrics(np.concatenate(self.scores), np.concatenate(self.labels))
         cont = {"pixel_" + name: value for name, value in cont.items()}
 
@@ -69,21 +74,12 @@ def _prepare_batch(
     if any(not isinstance(name, str) or not name or name == "macro_avg" for name in categories):
         raise ValueError("Categories must be nonempty strings other than 'macro_avg'")
 
-    masks = None
-    if postprocessor is not None:
-        masks = postprocessor(scores)
-
-        if (
-            not isinstance(masks, np.ndarray)
-            or masks.shape != scores.shape
-            or masks.dtype != np.bool_
-        ):
-            raise ValueError("Postprocessor must return matching boolean masks")
+    masks = None if postprocessor is None else postprocessor(scores)
 
     return scores, labels, np.asarray(categories), masks
 
 
-def _macro_average(rows: dict[str, dict[str, float]]) -> dict[str, float]:
+def _macro_average(rows: dict[str, MetricsDict]) -> MetricsDict:
     averages = {}
 
     for metric in next(iter(rows.values())):
@@ -99,17 +95,15 @@ def evaluate(
     batches: Iterable[EvaluationBatch],
     *,
     postprocessor: Postprocessor | None = None,
-) -> dict[str, dict[str, dict[str, float]]]:
+    verbose: bool = False,
+) -> dict[str, dict[str, MetricsDict]]:
     """Return per-category and macro-averaged continuous/binary metrics."""
-    accumulators: dict[str, Accumulator] = {}
+    accumulators = defaultdict(Accumulator)
 
-    for batch in batches:
+    for batch in tqdm(batches, desc="Evaluating", disable=not verbose):
         scores, labels, categories, masks = _prepare_batch(batch, postprocessor)
 
         for category in np.unique(categories):
-            if category not in accumulators:
-                accumulators[category] = Accumulator()
-
             selected = categories == category
             accumulators[category].add(
                 scores[selected],
@@ -117,11 +111,8 @@ def evaluate(
                 masks[selected] if masks is not None else None,
             )
 
-    if not accumulators:
-        raise ValueError("Evaluation requires at least one batch")
-
     results = {
-        category: accumulator.result(postprocessor is not None)
+        category: accumulator.result(include_binary=postprocessor is not None)
         for category, accumulator in accumulators.items()
     }
 

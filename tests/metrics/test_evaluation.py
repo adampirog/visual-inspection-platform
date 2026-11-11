@@ -1,9 +1,7 @@
-from pathlib import Path
-
 import numpy as np
 import pytest
 
-from visual_inspection_platform.evaluation.evaluation import evaluate
+from visual_inspection_platform.evaluation.evaluation import EvaluationBatch, evaluate
 from visual_inspection_platform.postprocessors import Postprocessor
 
 
@@ -19,31 +17,20 @@ class ThresholdPostprocessor(Postprocessor):
         self.calls += 1
         return maps >= self.threshold
 
-    def get_params(self):
+    def get_params(self) -> dict:
         return {"threshold": self.threshold}
-
-    def _save(self, path: Path) -> None:
-        pass
 
 
 @pytest.fixture
 def batches():
     return [
         {
-            "y_pred": np.array(
-                [[[0.9, 0.1]], [[0.2, 0.8]]],
-                dtype=np.float32,
-            ),
-            "y_true": np.array(
-                [[[True, False]], [[True, False]]],
-            ),
+            "y_pred": np.array([[[0.9, 0.1]], [[0.2, 0.8]]], dtype=np.float32),
+            "y_true": np.array([[[True, False]], [[True, False]]]),
             "categories": ["cashew", "pcb1"],
         },
         {
-            "y_pred": np.array(
-                [[[0.8, 0.2]]],
-                dtype=np.float32,
-            ),
+            "y_pred": np.array([[[0.8, 0.2]]], dtype=np.float32),
             "y_true": np.array([[[True, False]]]),
             "categories": ["cashew"],
         },
@@ -79,7 +66,7 @@ def test_binary_report(batches):
 
 
 def test_global_ranking_across_batches():
-    batches = [
+    batches: list[EvaluationBatch] = [
         {
             "y_pred": np.array([[[0.9, 0.8]]], dtype=np.float32),
             "y_true": np.array([[[True, False]]]),
@@ -94,16 +81,11 @@ def test_global_ranking_across_batches():
 
     metrics = evaluate(batches)["continuous"]["cashew"]
 
-    assert metrics == pytest.approx(
-        {
-            "pixel_auroc": 0.75,
-            "pixel_ap": 5 / 6,
-        }
-    )
+    assert metrics == pytest.approx({"pixel_auroc": 0.75, "pixel_ap": 5 / 6})
 
 
 def test_binary_aggregation_across_batches():
-    batches = [
+    batches: list[EvaluationBatch] = [
         {
             "y_pred": np.array([[[0.9, 0.8]]], dtype=np.float32),
             "y_true": np.array([[[True, False]]]),
@@ -129,15 +111,10 @@ def test_binary_aggregation_across_batches():
 
 
 def test_macro_average_ignores_undefined_auc():
-    batches = [
+    batches: list[EvaluationBatch] = [
         {
-            "y_pred": np.array(
-                [[[0.9, 0.1]], [[0.2, 0.3]]],
-                dtype=np.float32,
-            ),
-            "y_true": np.array(
-                [[[True, False]], [[False, False]]],
-            ),
+            "y_pred": np.array([[[0.9, 0.1]], [[0.2, 0.3]]], dtype=np.float32),
+            "y_true": np.array([[[True, False]], [[False, False]]]),
             "categories": ["cashew", "pcb1"],
         }
     ]
@@ -151,11 +128,6 @@ def test_macro_average_ignores_undefined_auc():
             "pixel_ap": 0.5,
         }
     )
-
-
-def test_empty_batches():
-    with pytest.raises(ValueError, match="at least one batch"):
-        evaluate([])
 
 
 @pytest.mark.parametrize(
@@ -177,11 +149,11 @@ def test_invalid_batch(shape, dtype, categories):
     }
 
     with pytest.raises(ValueError):
-        evaluate([batch])
+        evaluate([batch])  # type:ignore
 
 
 def test_mismatched_ground_truth():
-    batch = {
+    batch: EvaluationBatch = {
         "y_pred": np.zeros((2, 2, 2), dtype=np.float32),
         "y_true": np.zeros((1, 2, 2), dtype=bool),
         "categories": ["cashew", "pcb1"],
@@ -199,7 +171,7 @@ def test_invalid_ground_truth_dtype():
     }
 
     with pytest.raises(ValueError):
-        evaluate([batch])
+        evaluate([batch])  # type:ignore
 
 
 def test_missing_categories():
@@ -209,16 +181,4 @@ def test_missing_categories():
     }
 
     with pytest.raises(KeyError, match="categories"):
-        evaluate([batch])
-
-
-@pytest.mark.parametrize("invalid_output", ["dtype", "shape"])
-def test_invalid_postprocessor_output(batches, invalid_output):
-    class InvalidPostprocessor(ThresholdPostprocessor):
-        def __call__(self, maps):
-            if invalid_output == "dtype":
-                return np.zeros(maps.shape, dtype=np.float32)
-            return np.zeros((1, 1), dtype=bool)
-
-    with pytest.raises(ValueError, match="Postprocessor must return"):
-        evaluate(batches, postprocessor=InvalidPostprocessor())
+        evaluate([batch])  # type:ignore
