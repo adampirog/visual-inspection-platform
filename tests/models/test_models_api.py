@@ -4,25 +4,8 @@ import numpy as np
 import pytest
 
 from visual_inspection_platform.models import AnomalyDetector, ModelManifest, TrainingMetadata
-from visual_inspection_platform.postprocessors import Postprocessor
+from visual_inspection_platform.postprocessors import ThresholdPostprocessor
 from visual_inspection_platform.postprocessors.registry import POSTPROCESSORS
-
-
-class DummyPostprocessor(Postprocessor):
-    KIND = "dummy"
-    VERSION = "1"
-
-    def __init__(self, threshold: float):
-        self.threshold = threshold
-
-    def __call__(self, maps):
-        return maps >= self.threshold
-
-    def get_params(self) -> dict:
-        return {"threshold": self.threshold}
-
-    def _save(self, path: Path) -> None:
-        pass
 
 
 class DummyDetector(AnomalyDetector):
@@ -45,7 +28,7 @@ class DummyDetector(AnomalyDetector):
             bias=float((path / "bias.txt").read_text(encoding="utf-8")),
             model_id=manifest.model_id,
             training_metadata=manifest.training_metadata,
-            postprocessor=DummyPostprocessor(0.9),
+            postprocessor=ThresholdPostprocessor(0.9),
         )
 
 
@@ -74,13 +57,13 @@ def test_model_roundtrip(tmp_path):
 
 
 def test_model_postprocessor_roundtrip(tmp_path, monkeypatch):
-    monkeypatch.setitem(POSTPROCESSORS, DummyPostprocessor.KIND, DummyPostprocessor)
+    monkeypatch.setitem(POSTPROCESSORS, ThresholdPostprocessor.KIND, ThresholdPostprocessor)
 
-    model = DummyDetector(postprocessor=DummyPostprocessor(0.5))
+    model = DummyDetector(postprocessor=ThresholdPostprocessor(0.5))
     model.save(tmp_path)
 
     loaded = DummyDetector.load(tmp_path)
-    assert isinstance(loaded.postprocessor, DummyPostprocessor)
+    assert isinstance(loaded.postprocessor, ThresholdPostprocessor)
     assert loaded.postprocessor.threshold == 0.5
 
     maps = np.array([[[0.2, 0.8]]], dtype=np.float32)

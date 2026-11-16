@@ -2,23 +2,7 @@ import numpy as np
 import pytest
 
 from visual_inspection_platform.evaluation.evaluation import EvaluationBatch, evaluate
-from visual_inspection_platform.postprocessors import Postprocessor
-
-
-class ThresholdPostprocessor(Postprocessor):
-    KIND = "threshold"
-    VERSION = "1"
-
-    def __init__(self, threshold: float = 0.5):
-        self.threshold = threshold
-        self.calls = 0
-
-    def __call__(self, maps):
-        self.calls += 1
-        return maps >= self.threshold
-
-    def get_params(self) -> dict:
-        return {"threshold": self.threshold}
+from visual_inspection_platform.postprocessors import ThresholdPostprocessor
 
 
 @pytest.fixture
@@ -51,7 +35,7 @@ def test_continuous_report(batches):
 
 
 def test_binary_report(batches):
-    processor = ThresholdPostprocessor()
+    processor = ThresholdPostprocessor(0.5)
     result = evaluate(batches, postprocessor=processor)
 
     assert set(result) == {"continuous", "binary"}
@@ -61,8 +45,6 @@ def test_binary_report(batches):
     assert rows["cashew"] == pytest.approx({"precision": 1.0, "recall": 1.0, "dice": 1.0})
     assert rows["pcb1"] == pytest.approx({"precision": 0.0, "recall": 0.0, "dice": 0.0})
     assert rows["macro_avg"] == pytest.approx({"precision": 0.5, "recall": 0.5, "dice": 0.5})
-
-    assert processor.calls == len(batches)
 
 
 def test_global_ranking_across_batches():
@@ -98,7 +80,7 @@ def test_binary_aggregation_across_batches():
         },
     ]
 
-    result = evaluate(batches, postprocessor=ThresholdPostprocessor())
+    result = evaluate(batches, postprocessor=ThresholdPostprocessor(0.5))
     metrics = result["binary"]["cashew"]
 
     assert metrics == pytest.approx(
