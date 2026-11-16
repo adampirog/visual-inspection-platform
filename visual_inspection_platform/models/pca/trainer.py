@@ -33,12 +33,6 @@ class PCATrainer(Trainer[PCADetector, PCAConfig]):
         if len({record.category for record in data}) != 1:
             raise ValueError("PCA training requires a single object category")
 
-        height, width = self.config.image_size
-        max_components = min(len(data), 3 * height * width)
-
-        if self.config.n_components >= max_components:
-            raise ValueError(f"n_components must be smaller than {max_components}")
-
         images = data.load_images(self.config.image_size)
         features = images.reshape(len(data), -1)
 

@@ -12,7 +12,13 @@ requires-python = ">=3.13"
 dependencies = [
     "numpy>=2",
     "pydantic>=2",
+    "pillow>=13",
+    "tqdm>=4",
+    "prettytable>=3",
 ]
+
+[project.optional-dependencies]
+pca = ["scikit-learn>=1.9"]
 
 [dependency-groups]
 dev = [

@@ -36,6 +36,8 @@ class ImageRecord:
         height, width = size
 
         if self.mask is None:
+            if self.label != "normal":
+                raise ValueError(f"Missing anomaly mask for {self.path}")
             return np.zeros((height, width), dtype=np.bool_)
 
         with Image.open(self.mask) as image:
