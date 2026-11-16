@@ -17,7 +17,7 @@ class ImageRecord:
 
     path: Path
     mask: Path | None
-    label: str
+    is_anomaly: bool
     category: str
 
     def load_image(self, size: tuple[int, int] = (64, 64)) -> ModelImage:
@@ -36,8 +36,9 @@ class ImageRecord:
         height, width = size
 
         if self.mask is None:
-            if self.label != "normal":
+            if self.is_anomaly:
                 raise ValueError(f"Missing anomaly mask for {self.path}")
+
             return np.zeros((height, width), dtype=np.bool_)
 
         with Image.open(self.mask) as image:
@@ -54,6 +55,7 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
         manifest: str | Path,
         data_dir: str | Path,
         *,
+        anomaly_label: str = "anomaly",
         split: str = "train",
         objects: Collection[str] | None = None,
     ) -> None:
@@ -68,9 +70,9 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
             objects = set(objects)
 
         self.objects = objects
-        self.images = tuple(self.read_manifest(manifest))
+        self.images = tuple(self.read_manifest(manifest, anomaly_label=anomaly_label))
 
-    def read_manifest(self, manifest: str | Path) -> list[ImageRecord]:
+    def read_manifest(self, manifest: str | Path, anomaly_label: str) -> list[ImageRecord]:
         """Read records matching the selected split and categories."""
         result = []
         with open(manifest, encoding="utf-8") as handle:
@@ -90,7 +92,7 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
                     ImageRecord(
                         path=self.data_dir / row["image"],
                         mask=mask,
-                        label=row["label"],
+                        is_anomaly=row["label"] == anomaly_label,
                         category=row["object"],
                     )
                 )

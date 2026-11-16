@@ -46,7 +46,7 @@ def test_manifest_loading(manifest, tmp_path):
 
     assert len(dataset) == 2
     assert dataset[0] == ImageRecord(
-        path=data_dir / "cashew/normal/001.JPG", mask=None, label="normal", category="cashew"
+        path=data_dir / "cashew/normal/001.JPG", mask=None, is_anomaly=False, category="cashew"
     )
 
     subset = dataset[:1]
@@ -59,7 +59,7 @@ def test_split_and_category_filtering(manifest, tmp_path):
     dataset = ImageRecordsDataset(manifest, tmp_path, split="test", objects="cashew")
 
     assert len(dataset) == 1
-    assert dataset[0].label == "anomaly"
+    assert dataset[0].is_anomaly
     assert dataset[0].mask == tmp_path / "cashew/masks/002.png"
 
     assert len(ImageRecordsDataset(manifest, tmp_path, objects={"pcb1"})) == 1

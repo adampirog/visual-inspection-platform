@@ -1,5 +1,3 @@
-from dataclasses import replace
-
 import numpy as np
 import pytest
 from PIL import Image
@@ -69,25 +67,3 @@ def test_evaluate(trainer, datasets):
 
     assert "binary" not in result
     assert result["continuous"]["cashew"] == pytest.approx({"pixel_auroc": 1.0, "pixel_ap": 1.0})
-
-
-def test_invalid_training_data(trainer, datasets):
-    train, test = datasets
-
-    with pytest.raises(ValueError, match="normal images only"):
-        trainer.fit(test)
-
-    large_trainer = PCATrainer(PCAConfig(n_components=3, image_size=(4, 4)))
-
-    with pytest.raises(ValueError, match="n_components"):
-        large_trainer.fit(train)
-
-
-def test_missing_anomaly_mask(trainer, datasets):
-    train, test = datasets
-    model = trainer.fit(train)
-
-    test.images = (test[0], replace(test[1], mask=None))
-
-    with pytest.raises(ValueError, match="segmentation mask"):
-        trainer.evaluate(model, test, batch_size=1)

@@ -12,6 +12,7 @@ from visual_inspection_platform.postprocessors import Postprocessor
 from visual_inspection_platform.types import AnomalyMaps, BinaryMasks
 
 from .metrics import _binary_counts, _binary_metrics, _ranking_metrics
+from .result import EvaluationResult
 
 
 MetricsDict = dict[str, float]
@@ -54,25 +55,23 @@ class Accumulator:
 
 
 def _prepare_batch(
-    batch: EvaluationBatch, postprocessor: Postprocessor | None
+    batch: EvaluationBatch,
+    postprocessor: Postprocessor | None,
 ) -> tuple[AnomalyMaps, BinaryMasks, np.ndarray, BinaryMasks | None]:
     scores, labels = batch["y_pred"], batch["y_true"]
     categories = batch["categories"]
 
-    if not isinstance(scores, np.ndarray) or not isinstance(labels, np.ndarray):
-        raise TypeError("y_pred and y_true must be NumPy arrays")
+    if scores.shape != labels.shape:
+        raise ValueError("Prediction and ground-truth shapes must match")
 
-    if scores.ndim != 3 or scores.shape != labels.shape or 0 in scores.shape:
-        raise ValueError("Expected nonempty matching [N, H, W] arrays")
-
-    if scores.dtype != np.float32 or labels.dtype != np.bool_:
-        raise ValueError("y_pred must be float32 and y_true must be boolean")
+    if labels.dtype != np.bool_:
+        raise ValueError("Ground-truth masks must be boolean")
 
     if isinstance(categories, str) or len(categories) != len(scores):
         raise ValueError("Expected one category per image")
 
-    if any(not isinstance(name, str) or not name or name == "macro_avg" for name in categories):
-        raise ValueError("Categories must be nonempty strings other than 'macro_avg'")
+    if "macro_avg" in categories:
+        raise ValueError("'macro_avg' is a reserved category name")
 
     masks = None if postprocessor is None else postprocessor(scores)
 
@@ -96,7 +95,7 @@ def evaluate(
     *,
     postprocessor: Postprocessor | None = None,
     verbose: bool = False,
-) -> dict[str, dict[str, MetricsDict]]:
+) -> EvaluationResult:
     """Return per-category and macro-averaged continuous/binary metrics."""
     accumulators = defaultdict(Accumulator)
 
@@ -126,4 +125,4 @@ def evaluate(
         rows["macro_avg"] = _macro_average(rows)
         report[section] = rows
 
-    return report
+    return EvaluationResult(report)

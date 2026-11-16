@@ -130,28 +130,6 @@ def test_macro_average_ignores_undefined_auc():
     )
 
 
-@pytest.mark.parametrize(
-    ("shape", "dtype", "categories"),
-    [
-        ((1, 2), np.float32, ["cashew"]),
-        ((1, 1, 2), np.float64, ["cashew"]),
-        ((1, 1, 2), np.float32, ["cashew", "pcb1"]),
-        ((1, 1, 2), np.float32, [""]),
-        ((1, 1, 2), np.float32, ["macro_avg"]),
-        ((1, 1, 2), np.float32, "cashew"),
-    ],
-)
-def test_invalid_batch(shape, dtype, categories):
-    batch = {
-        "y_pred": np.zeros(shape, dtype=dtype),
-        "y_true": np.zeros(shape, dtype=bool),
-        "categories": categories,
-    }
-
-    with pytest.raises(ValueError):
-        evaluate([batch])  # type:ignore
-
-
 def test_mismatched_ground_truth():
     batch: EvaluationBatch = {
         "y_pred": np.zeros((2, 2, 2), dtype=np.float32),

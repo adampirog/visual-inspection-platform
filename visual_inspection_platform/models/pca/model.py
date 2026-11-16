@@ -33,19 +33,6 @@ class PCADetector(AnomalyDetector):
         self.components = np.asarray(components, dtype=np.float32)
         self.image_size = image_size
 
-        height, width = image_size
-        features = 3 * height * width
-
-        if (
-            height <= 0
-            or width <= 0
-            or self.mean.shape != (features,)
-            or self.components.ndim != 2
-            or self.components.shape[0] == 0
-            or self.components.shape[1] != features
-        ):
-            raise ValueError("Invalid PCA parameters or image size")
-
     def predict(self, images: ImageBatch) -> AnomalyMaps:
         """Return per-pixel mean squared reconstruction error."""
         validate_image_batch(images)
