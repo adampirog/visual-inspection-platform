@@ -54,8 +54,8 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
         self,
         manifest: str | Path,
         data_dir: str | Path,
+        label_map: dict[str, bool],
         *,
-        anomaly_label: str = "anomaly",
         split: str = "train",
         objects: Collection[str] | None = None,
     ) -> None:
@@ -70,9 +70,10 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
             objects = set(objects)
 
         self.objects = objects
-        self.images = tuple(self.read_manifest(manifest, anomaly_label=anomaly_label))
+        self.label_map = label_map
+        self.images = tuple(self.read_manifest(manifest))
 
-    def read_manifest(self, manifest: str | Path, anomaly_label: str) -> list[ImageRecord]:
+    def read_manifest(self, manifest: str | Path) -> list[ImageRecord]:
         """Read records matching the selected split and categories."""
         result = []
         with open(manifest, encoding="utf-8") as handle:
@@ -92,7 +93,7 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
                     ImageRecord(
                         path=self.data_dir / row["image"],
                         mask=mask,
-                        is_anomaly=row["label"] == anomaly_label,
+                        is_anomaly=self.label_map[row["label"]],
                         category=row["object"],
                     )
                 )

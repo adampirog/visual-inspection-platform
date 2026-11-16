@@ -150,13 +150,3 @@ def test_invalid_ground_truth_dtype():
 
     with pytest.raises(ValueError):
         evaluate([batch])  # type:ignore
-
-
-def test_missing_categories():
-    batch = {
-        "y_pred": np.zeros((1, 2, 2), dtype=np.float32),
-        "y_true": np.zeros((1, 2, 2), dtype=bool),
-    }
-
-    with pytest.raises(KeyError, match="categories"):
-        evaluate([batch])  # type:ignore

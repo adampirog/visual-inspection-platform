@@ -24,6 +24,9 @@ class PCATrainer(Trainer[PCADetector, PCAConfig]):
     def fit(self, data: ImageRecordsDataset) -> PCADetector:
         """Fit PCA on normal images from one object category."""
 
+        if any(record.is_anomaly for record in data):
+            raise ValueError("PCA training requires anomaly-free data")
+
         images = data.load_images(self.config.image_size)
         features = images.reshape(len(data), -1)
 

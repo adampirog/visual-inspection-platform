@@ -35,10 +35,11 @@ def datasets(tmp_path):
 
     manifest = tmp_path / "manifest.csv"
     manifest.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    label_map = {"normal": False, "anomaly": True}
 
     return (
-        ImageRecordsDataset(manifest, tmp_path, split="train"),
-        ImageRecordsDataset(manifest, tmp_path, split="test"),
+        ImageRecordsDataset(manifest, tmp_path, split="train", label_map=label_map),
+        ImageRecordsDataset(manifest, tmp_path, split="test", label_map=label_map),
     )
 
 
