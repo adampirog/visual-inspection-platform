@@ -1,6 +1,30 @@
+import numpy as np
 import pytest
+from PIL import Image
 
 from visual_inspection_platform.data import ImageRecord, ImageRecordsDataset
+
+
+@pytest.fixture
+def image_dataset(tmp_path):
+    image = np.zeros((2, 3, 3), dtype=np.uint8)
+    image[:] = [255, 128, 0]
+
+    mask = np.zeros((2, 3), dtype=np.uint8)
+    mask[0, 1] = 255
+
+    Image.fromarray(image).save(tmp_path / "normal.png")
+    Image.fromarray(image).save(tmp_path / "anomaly.png")
+    Image.fromarray(mask).save(tmp_path / "mask.png")
+
+    manifest = tmp_path / "manifest.csv"
+    manifest.write_text(
+        "object,split,label,image,mask\n"
+        "cashew,train,normal,normal.png,\n"
+        "cashew,train,anomaly,anomaly.png,mask.png\n",
+        encoding="utf-8",
+    )
+    return ImageRecordsDataset(manifest, tmp_path)
 
 
 @pytest.fixture
@@ -24,7 +48,11 @@ def test_manifest_loading(manifest, tmp_path):
     assert dataset[0] == ImageRecord(
         path=data_dir / "cashew/normal/001.JPG", mask=None, label="normal", category="cashew"
     )
-    assert dataset[:1] == (dataset[0],)
+
+    subset = dataset[:1]
+    assert isinstance(subset, ImageRecordsDataset)
+    assert len(subset) == 1
+    assert subset[0] is dataset[0]
 
 
 def test_split_and_category_filtering(manifest, tmp_path):
@@ -42,3 +70,40 @@ def test_split_and_category_filtering(manifest, tmp_path):
 def test_empty_selection(manifest, tmp_path):
     dataset = ImageRecordsDataset(manifest, tmp_path, objects="unknown")
     assert len(dataset) == 0
+
+
+def test_image_loading(image_dataset):
+    image = image_dataset[0].load_image((2, 3))
+
+    assert image.shape == (3, 2, 3)
+    assert image.dtype == np.float32
+    np.testing.assert_allclose(image[:, 0, 0], [1.0, 128 / 255, 0.0])
+
+
+def test_mask_loading(image_dataset):
+    normal = image_dataset[0].load_mask((2, 3))
+    anomaly = image_dataset[1].load_mask((2, 3))
+
+    assert normal.dtype == np.bool_
+    assert not normal.any()
+    assert anomaly.sum() == 1
+    assert anomaly[0, 1]
+
+    resized = image_dataset[1].load_mask((4, 6))
+    assert resized.shape == (4, 6)
+    assert resized.sum() == 4
+
+
+def test_sliced_batch_loading(image_dataset):
+    batch = image_dataset[:2]
+    images = batch.load_images((2, 3))
+    masks = batch.load_masks((2, 3))
+
+    assert isinstance(batch, ImageRecordsDataset)
+    assert images.shape == (2, 3, 2, 3)
+    assert masks.shape == (2, 2, 3)
+    assert images.flags.c_contiguous
+    assert masks.flags.c_contiguous
+    assert masks[1].sum() == 1
+
+    assert image_dataset[:0].load_images((2, 3)).shape == (0, 3, 2, 3)
