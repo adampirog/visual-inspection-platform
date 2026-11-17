@@ -1,3 +1,11 @@
+"""
+Shared image preprocessing for training and inference.
+
+Image sizes are expressed as (height, width).
+Images use RGB channel-first float32 arrays in [0, 1].
+Masks use boolean arrays, where True indicates an anomaly.
+"""
+
 from collections.abc import Collection
 from pathlib import Path
 from typing import BinaryIO
@@ -9,7 +17,7 @@ from visual_inspection_platform.types import BinaryMask, BinaryMasks, ImageBatch
 
 
 def load_image(path: str | Path | BinaryIO, size: tuple[int, int]) -> ModelImage:
-    """Load an RGB image as CHW float32 in [0, 1]."""
+    """Decode and resize an image using bilinear interpolation."""
     height, width = size
 
     with Image.open(path) as image:
@@ -21,7 +29,11 @@ def load_image(path: str | Path | BinaryIO, size: tuple[int, int]) -> ModelImage
 
 
 def load_mask(path: str | Path | BinaryIO, size: tuple[int, int]) -> BinaryMask:
-    """Load a binary mask; missing masks represent normal images."""
+    """
+    Resize a grayscale mask using nearest-neighbor interpolation.
+
+    Nonzero pixels represent anomalies.
+    """
     height, width = size
 
     with Image.open(path) as image:

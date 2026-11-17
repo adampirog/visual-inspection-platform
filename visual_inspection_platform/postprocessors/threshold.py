@@ -9,7 +9,7 @@ from .base import Postprocessor
 
 
 class ThresholdPostprocessor(Postprocessor):
-    """Apply a fixed global threshold to anomaly maps."""
+    """Mark pixels whose anomaly scores strictly exceed a global threshold."""
 
     KIND = "threshold"
     VERSION = "1"
@@ -25,5 +25,5 @@ class ThresholdPostprocessor(Postprocessor):
 
     @classmethod
     def calibrate(cls, maps: AnomalyMaps, quantile: float = 0.995) -> Self:
-        """Calibrate a global threshold using normal anomaly maps."""
+        """Estimate a global threshold from the quantile of all normal-image scores."""
         return cls(threshold=float(np.quantile(maps, quantile)))

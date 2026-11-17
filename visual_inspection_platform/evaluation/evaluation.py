@@ -19,6 +19,12 @@ MetricsDict = dict[str, float]
 
 
 class EvaluationBatch(TypedDict):
+    """
+    Aligned predictions, ground-truth masks and one category per image.
+
+    Prediction and ground-truth arrays have shape [N, H, W].
+    """
+
     y_true: BinaryMasks
     y_pred: AnomalyMaps
     categories: Sequence[str]
@@ -26,6 +32,8 @@ class EvaluationBatch(TypedDict):
 
 @dataclass
 class Accumulator:
+    """Accumulate pixel scores, labels and confusion counts across batches."""
+
     scores: list[np.ndarray] = field(default_factory=list)
     labels: list[np.ndarray] = field(default_factory=list)
     tp: int = 0
@@ -96,7 +104,16 @@ def evaluate(
     postprocessor: Postprocessor | None = None,
     verbose: bool = False,
 ) -> EvaluationResult:
-    """Return per-category and macro-averaged continuous/binary metrics."""
+    """
+    Evaluate pixel-level segmentation performance across batches.
+
+    Metrics are computed over all pixels within each category, not averaged
+    over individual images or batches. Macro averages weight categories
+    equally and exclude undefined metric values.
+
+    Binary metrics are included only when a postprocessor is supplied.
+    The category name 'macro_avg' is reserved for aggregate results.
+    """
     accumulators = defaultdict(Accumulator)
 
     for batch in tqdm(batches, desc="Evaluating", disable=not verbose):

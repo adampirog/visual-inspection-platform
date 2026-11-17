@@ -38,7 +38,14 @@ class ImageRecord:
 
 
 class ImageRecordsDataset(Sequence[ImageRecord]):
-    """Sequence of image records loaded from a CSV manifest."""
+    """
+    Lazily loaded images and annotations from a CSV manifest.
+
+    Expected columns: object, split, label, image, mask.
+    Paths are resolved relative to data_dir.
+    Labels are mapped to booleans, where True indicates an anomaly.
+    An empty objects collection disables category filtering.
+    """
 
     def __init__(
         self,

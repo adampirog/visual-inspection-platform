@@ -50,7 +50,8 @@ class EvaluationResult(UserDict):
         return "\n\n".join(reports)
 
     def save(self, path: str | Path) -> None:
-        """Save evaluation results as .txt or .json."""
+        """Save a formatted text report (.txt) or raw metrics (.json)."""
+
         path = Path(path)
 
         if path.suffix == ".txt":

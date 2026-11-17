@@ -10,7 +10,12 @@ from .base import Postprocessor
 
 
 class SpatialThresholdPostprocessor(Postprocessor):
-    """Apply a learned threshold map to anomaly maps."""
+    """
+    Apply location-specific thresholds with an additive offset.
+
+    Thresholds are broadcast over the input batch.
+    Spatial calibration assumes reasonably aligned images.
+    """
 
     KIND = "spatial_threshold"
     VERSION = "1"
@@ -31,7 +36,7 @@ class SpatialThresholdPostprocessor(Postprocessor):
 
     @classmethod
     def calibrate(cls, maps: AnomalyMaps, quantile: float = 0.995, offset: float = 0.0) -> Self:
-        """Calibrate a threshold independently for each pixel location."""
+        """Estimate a score quantile at each pixel location across normal images."""
         thresholds = np.quantile(maps, quantile, axis=0).astype(np.float32)
         return cls(offset=offset, thresholds=thresholds)
 

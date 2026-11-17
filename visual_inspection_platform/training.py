@@ -24,7 +24,7 @@ class TrainerConfig(BaseModel):
 
 
 class Trainer[DetectorType: AnomalyDetector, ConfigType: TrainerConfig](ABC):
-    """Train a model-specific detector."""
+    """Base interface for fitting a detector from a model-specific configuration."""
 
     def __init__(self, config: ConfigType) -> None:
         self.config = config

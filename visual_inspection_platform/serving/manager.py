@@ -26,7 +26,11 @@ class ModelInfo:
 
 
 class ServableModel:
-    """Lazy, thread-safe wrapper around one serialized model artifact."""
+    """
+    Model artifact with eagerly loaded metadata and lazily loaded parameters.
+
+    Loading and unloading cached state are synchronized.
+    """
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path).resolve()
@@ -59,12 +63,7 @@ class ServableModel:
         )
 
     def load(self, model_class: type[AnomalyDetector]) -> AnomalyDetector:
-        """
-        Load and cache the model, returning the cached instance on later calls.
-
-        Args:
-            model_class: AnomalyDetector class used to load the artifact.
-        """
+        """Load the model on first access and return the cached instance thereafter."""
         with self._lock:
             if self._model is None:
                 self._model = model_class.load(self.path)
@@ -78,7 +77,7 @@ class ServableModel:
 
 
 class ModelManager:
-    """Discover model artifacts and manage their lazy loading lifecycle."""
+    """Manage discovered model artifacts and their in-memory instances."""
 
     def __init__(self, registry: ModelRegistry) -> None:
         self.registry = registry
@@ -88,11 +87,13 @@ class ModelManager:
 
     def discover(self, path: str | Path) -> tuple[str, ...]:
         """
-        Discover previously unseen model artifacts below a directory.
+        Recursively register new artifacts identified by MANIFEST.json.
 
-        Returns:
-            IDs of newly discovered models.
+        Unreadable or invalid manifests are skipped and logged.
+        Previously registered IDs remain unchanged.
+        Returns the sorted IDs of newly registered models.
         """
+
         new = set()
         for manifest_path in Path(path).rglob("MANIFEST.json"):
             try:
@@ -113,11 +114,10 @@ class ModelManager:
 
     def load(self, model_id: str) -> AnomalyDetector:
         """
-        Load and cache a discovered model by ID.
+        Load or retrieve a cached model by ID.
 
-        Raises:
-            KeyError: If the model ID is unknown.
-            RuntimeError: If its model family is not registered.
+        Raises ModelNotFoundError for unknown IDs.
+        Artifact deserialization errors propagate to the caller.
         """
         with self._lock:
             try:
@@ -135,7 +135,11 @@ class ModelManager:
         return servable.load(model_class)
 
     def unload(self, model_id: str) -> None:
-        """Unload model state while keeping the artifact registered."""
+        """
+        Release the cached model while retaining its registration.
+
+        Unknown model IDs are ignored.
+        """
         with self._lock:
             model = self._models.get(model_id)
 

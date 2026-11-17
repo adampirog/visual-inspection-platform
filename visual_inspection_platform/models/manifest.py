@@ -11,6 +11,8 @@ MANIFEST_VERSION = "0.1.0"
 
 
 class TrainingMetadata(BaseModel):
+    """Fully qualified trainer name and its serialized configuration."""
+
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     trainer: str
@@ -18,7 +20,13 @@ class TrainingMetadata(BaseModel):
 
 
 class ModelManifest(BaseModel):
-    """Metadata required to identify and load a serialized model."""
+    """
+    Model metadata readable without loading model parameters.
+
+    image_size is stored as (height, width).
+    artifact_version identifies the model-specific serialization format.
+    manifest_version identifies the common metadata format.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 

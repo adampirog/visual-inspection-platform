@@ -15,6 +15,7 @@ def _binary_counts(y_pred: BinaryMasks, y_true: BinaryMasks) -> tuple[int, int, 
 
 
 def _binary_metrics(tp: int, fp: int, fn: int) -> dict[str, float]:
+    """Compute binary segmentation metrics, returning zero for undefined ratios."""
     return {
         "precision": tp / (tp + fp) if tp + fp else 0.0,
         "recall": tp / (tp + fn) if tp + fn else 0.0,
@@ -37,7 +38,14 @@ def dice(y_pred: BinaryMasks, y_true: BinaryMasks) -> float:
 
 
 def _ranking_metrics(y_pred: np.ndarray, y_true: np.ndarray) -> dict[str, float]:
-    """Calculate pixel AUROC and AP with a single sorting operation."""
+    """
+    Compute AUROC and average precision over flattened pixel scores.
+
+    Equal scores share a ranking threshold. AUROC is undefined (NaN)
+    when only one ground-truth class is present.
+    AP is zero without positives and one without negatives.
+    """
+
     if y_pred.shape != y_true.shape:
         raise ValueError("Prediction and ground-truth shapes must match")
 
@@ -81,8 +89,10 @@ def _ranking_metrics(y_pred: np.ndarray, y_true: np.ndarray) -> dict[str, float]
 
 
 def pixel_auroc(y_pred: AnomalyMaps, y_true: BinaryMasks) -> float:
+    """Area under the pixel-level ROC curve; NaN for single-class ground truth."""
     return _ranking_metrics(y_pred, y_true)["auroc"]
 
 
 def pixel_ap(y_pred: AnomalyMaps, y_true: BinaryMasks) -> float:
+    """Pixel-level average precision, using recall-weighted precision."""
     return _ranking_metrics(y_pred, y_true)["ap"]

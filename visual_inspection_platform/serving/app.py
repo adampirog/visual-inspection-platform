@@ -39,12 +39,18 @@ def _load_model(manager: ModelManager, model_id: str) -> AnomalyDetector:
 
 
 def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
-    """Create the serving API for a model manager and artifact directory."""
+    """
+    Create the serving API using an existing model manager.
+
+    model_path is the artifact directory scanned by refresh operations.
+    """
+
     app = FastAPI(title="Visual Inspection Platform", version=API_VERSION)
     model_path = model_path.resolve()
 
     @app.get("/health")
     def health() -> HealthResponse:
+        """Report degraded status when no model artifacts are registered."""
         return HealthResponse(
             status="ok" if manager.n_models else "degraded",
             version=__version__,
@@ -69,6 +75,13 @@ def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
         files: Annotated[list[UploadFile], File(min_length=1, max_length=32)],
         include_masks: bool = False,
     ) -> PredictionResponse:
+        """
+        Predict anomaly maps for uploaded images in request order.
+
+        Images are resized to the model's expected resolution.
+        Scores are returned without normalization or resizing to the original
+        image dimensions. Binary masks require a configured postprocessor.
+        """
         model = _load_model(manager, model_id)
 
         if include_masks and model.postprocessor is None:
@@ -93,6 +106,7 @@ def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
 
     @app.post("/admin/models/refresh")
     def refresh_models() -> ModelRefreshResponse:
+        """Discover new artifacts without replacing previously registered models."""
         return ModelRefreshResponse(added=list(manager.discover(model_path)))
 
     @app.post("/admin/models/{model_id}/load")
@@ -103,6 +117,7 @@ def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
 
     @app.delete("/admin/models/{model_id}/load")
     def unload_model(model_id: str) -> ModelLoadResponse:
+        """Release cached model state without removing its registration."""
         manager.unload(model_id)
 
         return ModelLoadResponse(model_id=model_id, loaded=False)

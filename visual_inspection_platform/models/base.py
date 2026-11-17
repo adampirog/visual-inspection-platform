@@ -10,7 +10,13 @@ from .manifest import ModelManifest, TrainingMetadata
 
 
 class AnomalyDetector(ABC):
-    """Base class for anomaly-map inference and optional postprocessing."""
+    """
+    Base interface for serializable anomaly detectors.
+
+    Each instance defines its expected image_size as (height, width).
+    Shared preprocessing is performed by the caller; model-specific
+    preprocessing is the responsibility of the detector.
+    """
 
     MODEL_FAMILY: ClassVar[str]
     ARTIFACT_VERSION: ClassVar[str]
@@ -34,10 +40,17 @@ class AnomalyDetector(ABC):
 
     @abstractmethod
     def predict(self, images: ImageBatch) -> AnomalyMaps:
-        """Predict continuous anomaly maps for a batch of images."""
+        """
+        Predict pixel-level anomaly scores.
+
+        Inputs are RGB float32 arrays of shape [N, 3, H, W] in [0, 1].
+        Outputs are float32 arrays of shape [N, H, W].
+        Higher scores indicate stronger anomalies.
+        Implementations must not modify the input batch.
+        """
 
     def predict_mask(self, maps: AnomalyMaps) -> BinaryMasks:
-        """Convert anomaly maps to binary masks using the postprocessor."""
+        """Convert precomputed anomaly maps to masks using the configured postprocessor."""
         if self.postprocessor is None:
             raise RuntimeError("No postprocessor configured")
 
@@ -45,7 +58,7 @@ class AnomalyDetector(ABC):
 
     @abstractmethod
     def _save(self, path: Path) -> None:
-        """Save model-specific parameters."""
+        """Save model-specific state; common metadata is handled by the base class."""
 
     def save(self, path: str | Path) -> None:
         """Serialize the fitted model to disk."""
@@ -72,7 +85,7 @@ class AnomalyDetector(ABC):
     @classmethod
     @abstractmethod
     def _load(cls, path: Path, manifest: ModelManifest) -> Self:
-        """Restore model-specific parameters."""
+        """Restore model-specific state using the identity and image size from the manifest."""
 
     @classmethod
     def load(cls, path: str | Path) -> Self:

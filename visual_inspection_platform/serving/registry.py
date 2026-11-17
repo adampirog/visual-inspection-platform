@@ -15,7 +15,11 @@ class ModelSpec:
 
 
 class ModelRegistry(Mapping[str, type[AnomalyDetector]]):
-    """Thread-safe registry of lazily imported detector classes."""
+    """
+    Registry of lazily imported detector classes, keyed by model family.
+
+    Model implementations are imported only when first requested.
+    """
 
     def __init__(self) -> None:
         self._specs: dict[str, ModelSpec] = {}
@@ -24,14 +28,7 @@ class ModelRegistry(Mapping[str, type[AnomalyDetector]]):
         self._lock = RLock()
 
     def register(self, model_family: str, *, module: str, class_name: str) -> None:
-        """
-        Register or replace a detector implementation for a model family.
-
-        Args:
-            model_family: Family identifier stored in model manifests.
-            module: Module containing the detector class.
-            class_name: AnomalyDetector class name.
-        """
+        """Register or replace a model family and invalidate its cached class."""
         spec = ModelSpec(module=module, class_name=class_name)
 
         with self._lock:

@@ -10,7 +10,12 @@ from visual_inspection_platform.validation import validate_image_batch
 
 
 class PCADetector(AnomalyDetector):
-    """Detect anomalies using PCA reconstruction error."""
+    """
+    Global PCA reconstruction model operating on flattened RGB images.
+
+    The mean has shape [D] and components have shape [K, D],
+    where D = 3 * height * width and K is the number of components.
+    """
 
     MODEL_FAMILY = "pca"
     ARTIFACT_VERSION = "1"
@@ -36,7 +41,8 @@ class PCADetector(AnomalyDetector):
         self.components = np.asarray(components, dtype=np.float32)
 
     def predict(self, images: ImageBatch) -> AnomalyMaps:
-        """Return per-pixel mean squared reconstruction error."""
+        """Return squared reconstruction errors averaged across color channels."""
+
         validate_image_batch(images)
 
         n, c, h, w = images.shape
