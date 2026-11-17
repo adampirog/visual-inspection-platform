@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, JsonValue
+from pydantic import BaseModel, ConfigDict, JsonValue, PositiveInt
 
 from visual_inspection_platform.postprocessors import PostprocessorManifest
 from visual_inspection_platform.version import __version__
@@ -24,7 +24,7 @@ class ModelManifest(BaseModel):
 
     model_id: str
     model_family: str
-    image_size: tuple[int, int]
+    image_size: tuple[PositiveInt, PositiveInt]
     postprocessor: PostprocessorManifest | None = None
     training_metadata: TrainingMetadata | None = None
     artifact_version: str

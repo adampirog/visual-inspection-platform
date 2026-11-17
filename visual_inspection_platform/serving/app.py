@@ -1,6 +1,7 @@
 """FastAPI application for serving serialized visual anomaly detectors."""
 
 from argparse import ArgumentParser, Namespace
+from logging import getLogger
 from pathlib import Path
 from typing import Annotated
 
@@ -12,7 +13,7 @@ from visual_inspection_platform.models import AnomalyDetector
 from visual_inspection_platform.utils.images import load_images
 from visual_inspection_platform.version import __version__
 
-from .manager import ModelManager
+from .manager import ModelManager, ModelNotFoundError
 from .registry import create_default_registry
 from .schema import (
     HealthResponse,
@@ -23,6 +24,9 @@ from .schema import (
 )
 
 
+logger = getLogger(__name__)
+
+
 API_VERSION = "0.1.0"
 
 
@@ -30,7 +34,7 @@ def _load_model(manager: ModelManager, model_id: str) -> AnomalyDetector:
     """Load a model or return HTTP 404 if it is unknown."""
     try:
         return manager.load(model_id)
-    except KeyError as exc:
+    except ModelNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Model {model_id!r} not found.") from exc
 
 

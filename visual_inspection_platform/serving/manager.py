@@ -1,10 +1,16 @@
 from dataclasses import dataclass
+from logging import getLogger
 from pathlib import Path
 from threading import Lock
+
+from pydantic import ValidationError
 
 from visual_inspection_platform.models import AnomalyDetector, ModelManifest
 
 from .registry import ModelRegistry
+
+
+logger = getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,6 +21,8 @@ class ModelInfo:
     model_family: str
     path: str
     loaded: bool
+    image_size: tuple[int, int]
+    has_postprocessor: bool
 
 
 class ServableModel:
@@ -46,6 +54,8 @@ class ServableModel:
             model_family=self.manifest.model_family,
             path=str(self.path),
             loaded=loaded,
+            has_postprocessor=self.manifest.postprocessor is not None,
+            image_size=self.manifest.image_size,
         )
 
     def load(self, model_class: type[AnomalyDetector]) -> AnomalyDetector:
@@ -85,7 +95,11 @@ class ModelManager:
         """
         new = set()
         for manifest_path in Path(path).rglob("MANIFEST.json"):
-            model = ServableModel(manifest_path.parent)
+            try:
+                model = ServableModel(manifest_path.parent)
+            except (OSError, ValidationError):
+                logger.exception(f"Could not read manifest: {manifest_path}")
+                continue
 
             with self._lock:
                 if model.model_id in self._models:
@@ -106,7 +120,10 @@ class ModelManager:
             RuntimeError: If its model family is not registered.
         """
         with self._lock:
-            servable = self._models[model_id]
+            try:
+                servable = self._models[model_id]
+            except KeyError as exc:
+                raise ModelNotFoundError(model_id) from exc
 
         try:
             model_class = self.registry[servable.manifest.model_family]
@@ -150,3 +167,7 @@ class ModelManager:
             models = tuple(self._models.values())
 
         return sum(model.is_loaded for model in models)
+
+
+class ModelNotFoundError(KeyError):
+    pass

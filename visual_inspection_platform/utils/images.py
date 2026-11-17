@@ -8,7 +8,7 @@ from PIL import Image
 from visual_inspection_platform.types import BinaryMask, BinaryMasks, ImageBatch, ModelImage
 
 
-def load_image(path: str | Path | BinaryIO, size: tuple[int, int] = (64, 64)) -> ModelImage:
+def load_image(path: str | Path | BinaryIO, size: tuple[int, int]) -> ModelImage:
     """Load an RGB image as CHW float32 in [0, 1]."""
     height, width = size
 
@@ -20,7 +20,7 @@ def load_image(path: str | Path | BinaryIO, size: tuple[int, int] = (64, 64)) ->
     return array.transpose(2, 0, 1) / 255.0
 
 
-def load_mask(path: str | Path | BinaryIO, size: tuple[int, int] = (64, 64)) -> BinaryMask:
+def load_mask(path: str | Path | BinaryIO, size: tuple[int, int]) -> BinaryMask:
     """Load a binary mask; missing masks represent normal images."""
     height, width = size
 

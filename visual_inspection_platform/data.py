@@ -24,7 +24,7 @@ class ImageRecord:
         """Load an RGB image as CHW float32 in [0, 1]."""
         return load_image(self.path, size=size)
 
-    def load_mask(self, size: tuple[int, int] = (64, 64)) -> BinaryMask:
+    def load_mask(self, size: tuple[int, int]) -> BinaryMask:
         """Load a binary mask; missing masks represent normal images."""
         height, width = size
 

@@ -5,7 +5,6 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict
 
 from visual_inspection_platform.data import ImageRecordsDataset
-from visual_inspection_platform.evaluation import EvaluationResult
 from visual_inspection_platform.models import AnomalyDetector, TrainingMetadata
 
 
@@ -33,17 +32,6 @@ class Trainer[DetectorType: AnomalyDetector, ConfigType: TrainerConfig](ABC):
     @abstractmethod
     def fit(self, data: ImageRecordsDataset) -> DetectorType:
         """Fit a detector from the training dataset."""
-
-    @abstractmethod
-    def evaluate(
-        self,
-        model: DetectorType,
-        data: ImageRecordsDataset,
-        *,
-        batch_size: int = 32,
-        verbose: bool = False,
-    ) -> EvaluationResult:
-        """Evaluate a detector on a given dataset"""
 
     def get_metadata(self) -> TrainingMetadata:
         return TrainingMetadata(

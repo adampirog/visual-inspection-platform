@@ -110,6 +110,9 @@ def evaluate(
                 masks[selected] if masks is not None else None,
             )
 
+    if not accumulators:
+        raise ValueError("Evaluation requires at least one image")
+
     results = {
         category: accumulator.result(include_binary=postprocessor is not None)
         for category, accumulator in accumulators.items()

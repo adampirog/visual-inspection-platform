@@ -45,10 +45,11 @@ class PCADetector(AnomalyDetector):
             raise ValueError(f"Expected image size {self.image_size}, got {(h, w)}")
 
         centered = images.reshape(n, -1) - self.mean
-        reconstructed = (centered @ self.components.T) @ self.components
-        residual = (centered - reconstructed).reshape(n, c, h, w)
+        centered -= (centered @ self.components.T) @ self.components
 
-        return np.mean(residual**2, axis=1, dtype=np.float32)
+        np.square(centered, out=centered)
+
+        return centered.reshape(n, c, h, w).mean(axis=1, dtype=np.float32)
 
     def _save(self, path: Path) -> None:
         np.savez(path / "pca.npz", mean=self.mean, components=self.components)
