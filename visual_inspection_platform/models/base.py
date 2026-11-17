@@ -18,6 +18,7 @@ class AnomalyDetector(ABC):
     def __init__(
         self,
         *,
+        image_size: tuple[int, int],
         model_id: str | None = None,
         training_metadata: TrainingMetadata | None = None,
         postprocessor: Postprocessor | None = None,
@@ -27,6 +28,7 @@ class AnomalyDetector(ABC):
         else:
             self.model_id = model_id
 
+        self.image_size = image_size
         self.training_metadata = training_metadata
         self.postprocessor = postprocessor
 
@@ -60,6 +62,7 @@ class AnomalyDetector(ABC):
 
         ModelManifest(
             model_id=self.model_id,
+            image_size=self.image_size,
             training_metadata=self.training_metadata,
             postprocessor=postprocessor_manifest,
             model_family=self.MODEL_FAMILY,

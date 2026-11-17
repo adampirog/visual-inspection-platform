@@ -26,12 +26,14 @@ class PCADetector(AnomalyDetector):
         postprocessor: Postprocessor | None = None,
     ) -> None:
         super().__init__(
-            model_id=model_id, training_metadata=training_metadata, postprocessor=postprocessor
+            model_id=model_id,
+            training_metadata=training_metadata,
+            postprocessor=postprocessor,
+            image_size=image_size,
         )
 
         self.mean = np.asarray(mean, dtype=np.float32)
         self.components = np.asarray(components, dtype=np.float32)
-        self.image_size = image_size
 
     def predict(self, images: ImageBatch) -> AnomalyMaps:
         """Return per-pixel mean squared reconstruction error."""
@@ -49,23 +51,17 @@ class PCADetector(AnomalyDetector):
         return np.mean(residual**2, axis=1, dtype=np.float32)
 
     def _save(self, path: Path) -> None:
-        np.savez(
-            path / "pca.npz",
-            mean=self.mean,
-            components=self.components,
-            image_size=self.image_size,
-        )
+        np.savez(path / "pca.npz", mean=self.mean, components=self.components)
 
     @classmethod
     def _load(cls, path: Path, manifest: ModelManifest) -> Self:
         with np.load(path / "pca.npz", allow_pickle=False) as data:
             mean = data["mean"]
             components = data["components"]
-            size = data["image_size"]
 
         return cls(
+            image_size=manifest.image_size,
             mean=mean,
             components=components,
-            image_size=(int(size[0]), int(size[1])),
             model_id=manifest.model_id,
         )

@@ -24,6 +24,7 @@ class ModelManifest(BaseModel):
 
     model_id: str
     model_family: str
+    image_size: tuple[int, int]
     postprocessor: PostprocessorManifest | None = None
     training_metadata: TrainingMetadata | None = None
     artifact_version: str

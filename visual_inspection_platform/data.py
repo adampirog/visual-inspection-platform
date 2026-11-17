@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Self, overload, override
 
 import numpy as np
-from PIL import Image
 
 from visual_inspection_platform.types import BinaryMask, BinaryMasks, ImageBatch, ModelImage
+from visual_inspection_platform.utils.images import load_image, load_mask
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,16 +20,9 @@ class ImageRecord:
     is_anomaly: bool
     category: str
 
-    def load_image(self, size: tuple[int, int] = (64, 64)) -> ModelImage:
+    def load_image(self, size: tuple[int, int]) -> ModelImage:
         """Load an RGB image as CHW float32 in [0, 1]."""
-        height, width = size
-
-        with Image.open(self.path) as image:
-            image = image.convert("RGB")
-            image = image.resize((width, height), Image.Resampling.BILINEAR)
-            array = np.asarray(image, dtype=np.float32)
-
-        return array.transpose(2, 0, 1) / 255.0
+        return load_image(self.path, size=size)
 
     def load_mask(self, size: tuple[int, int] = (64, 64)) -> BinaryMask:
         """Load a binary mask; missing masks represent normal images."""
@@ -41,10 +34,7 @@ class ImageRecord:
 
             return np.zeros((height, width), dtype=np.bool_)
 
-        with Image.open(self.mask) as image:
-            image = image.convert("L")
-            image = image.resize((width, height), Image.Resampling.NEAREST)
-            return np.asarray(image) != 0
+        return load_mask(self.mask, size=size)
 
 
 class ImageRecordsDataset(Sequence[ImageRecord]):
