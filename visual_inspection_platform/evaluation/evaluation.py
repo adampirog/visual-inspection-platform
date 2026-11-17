@@ -98,7 +98,7 @@ def _macro_average(rows: dict[str, MetricsDict]) -> MetricsDict:
 
 def evaluate(
     batches: Iterable[EvaluationBatch], *, postprocessor: Postprocessor | None = None
-) -> dict[str, dict[str, float]]:
+) -> dict[str, dict[str, MetricsDict]]:
     """
     Evaluate pixel-level segmentation performance across batches.
 

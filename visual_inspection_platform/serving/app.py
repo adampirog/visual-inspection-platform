@@ -65,6 +65,8 @@ def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
                 model_id=model.model_id,
                 model_family=model.model_family,
                 loaded=model.loaded,
+                image_size=model.image_size,
+                has_postprocessor=model.has_postprocessor,
             )
             for model in manager.available_models()
         ]

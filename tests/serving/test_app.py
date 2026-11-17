@@ -35,6 +35,8 @@ def test_health_and_models(client):
         "model_id": "model-a",
         "model_family": "pca",
         "loaded": False,
+        "has_postprocessor": True,
+        "image_size": [2, 3],
     }
 
 

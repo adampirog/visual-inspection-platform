@@ -20,6 +20,8 @@ class ModelResponse(BaseModel):
     model_id: str
     model_family: str
     loaded: bool
+    image_size: tuple[int, int]
+    has_postprocessor: bool
 
 
 class HealthResponse(BaseModel):

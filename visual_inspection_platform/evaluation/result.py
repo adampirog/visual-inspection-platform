@@ -5,6 +5,8 @@ from pathlib import Path
 
 from prettytable import PrettyTable
 
+from .evaluation import MetricsDict
+
 
 METRIC_NAMES = {
     "pixel_auroc": "Pixel AUROC",
@@ -12,7 +14,7 @@ METRIC_NAMES = {
 }
 
 
-class EvaluationResult(UserDict):
+class EvaluationResult(UserDict[str, dict[str, MetricsDict]]):
     """Segmentation metrics grouped by evaluation type and category."""
 
     def __str__(self) -> str:
@@ -58,6 +60,18 @@ class EvaluationResult(UserDict):
             path.write_text(str(self), encoding="utf-8")
         elif path.suffix == ".json":
             with path.open("w", encoding="utf-8") as handle:
-                json.dump(self.data, handle, indent=2, allow_nan=True)
+                json.dump(self.sanitize_json(self.data), handle, indent=2, allow_nan=False)
         else:
             raise ValueError(f"Format '{path.suffix}' not supported")
+
+    def sanitize_json(self, value):
+        """
+        Change NaN to None in json serializable object
+        """
+        if isinstance(value, float) and not math.isfinite(value):
+            return None
+        if isinstance(value, dict):
+            return {k: self.sanitize_json(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [self.sanitize_json(v) for v in value]
+        return value

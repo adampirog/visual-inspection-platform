@@ -23,14 +23,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY --from=builder /wheels /wheels
-
-RUN python -m pip install \
+RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
+    python -m pip install \
         --no-cache-dir \
         --no-index \
         --find-links=/wheels \
         "visual-inspection-platform[serving]" \
-    && rm -rf /wheels \
     && useradd --create-home --uid 10001 appuser \
     && mkdir -p /models \
     && chown appuser:appuser /models
