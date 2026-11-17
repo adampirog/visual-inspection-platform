@@ -31,14 +31,20 @@ def test_report(tmp_path):
     assert json.loads(json_path.read_text(encoding="utf-8")) == result.data
 
 
-def test_undefined_metrics():
+def test_unsupported_format(tmp_path):
+    with pytest.raises(ValueError, match="not supported"):
+        EvaluationResult().save(tmp_path / "evaluation.csv")
+
+
+def test_undefined_metrics(tmp_path):
     result = EvaluationResult(
         {"continuous": {"cashew": {"pixel_auroc": float("nan"), "pixel_ap": 0.0}}}
     )
 
     assert "N/A" in str(result)
 
+    path = tmp_path / "evaluation.json"
+    result.save(path)
 
-def test_unsupported_format(tmp_path):
-    with pytest.raises(ValueError, match="not supported"):
-        EvaluationResult().save(tmp_path / "evaluation.csv")
+    metrics = json.loads(path.read_text(encoding="utf-8"))
+    assert metrics["continuous"]["cashew"]["pixel_auroc"] is None

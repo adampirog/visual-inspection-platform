@@ -1,7 +1,6 @@
 """FastAPI application for serving serialized visual anomaly detectors."""
 
 from argparse import ArgumentParser, Namespace
-from logging import getLogger
 from pathlib import Path
 from typing import Annotated
 
@@ -22,9 +21,6 @@ from .schema import (
     ModelResponse,
     PredictionResponse,
 )
-
-
-logger = getLogger(__name__)
 
 
 API_VERSION = "0.1.0"
@@ -131,7 +127,7 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description=__doc__)
 
     parser.add_argument("model_path", type=Path, help="Root directory containing model artifacts.")
-    parser.add_argument("--host", default="0.0.0.0", help="Server host.")
+    parser.add_argument("--host", default="127.0.0.1", help="Server host.")
     parser.add_argument("--port", type=int, default=8000, help="Server port.")
 
     return parser.parse_args()

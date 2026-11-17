@@ -17,6 +17,7 @@ from visual_inspection_platform.evaluation.metrics import (
         ([1, 0, 1, 0], [1, 1, 0, 0], (0.5, 0.5, 0.5)),
         ([0, 0, 0, 0], [1, 1, 0, 0], (0.0, 0.0, 0.0)),
         ([0, 0, 0, 0], [0, 0, 0, 0], (0.0, 0.0, 0.0)),
+        ([1, 1, 1, 0], [1, 1, 0, 0], (2 / 3, 1.0, 0.8)),
     ],
 )
 def test_binary_metrics(pred, true, expected):

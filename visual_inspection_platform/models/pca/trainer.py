@@ -15,7 +15,7 @@ class PCAConfig(TrainerConfig):
 
 
 class PCATrainer(Trainer[PCADetector, PCAConfig]):
-    """Train and evaluate a PCA reconstruction baseline."""
+    """Train a PCA reconstruction detector."""
 
     def fit(self, data: ImageRecordsDataset) -> PCADetector:
         """Fit PCA on anomaly-free images using the configured resolution."""

@@ -29,6 +29,9 @@ class SpatialThresholdPostprocessor(Postprocessor):
         self.thresholds = np.asarray(thresholds, dtype=np.float32)
 
     def __call__(self, maps: AnomalyMaps) -> BinaryMasks:
+        if self.thresholds.shape != maps.shape[1:]:
+            raise ValueError("Threshold map must match the anomaly map resolution")
+
         return maps > self.thresholds + self.offset
 
     def get_params(self) -> dict[str, JsonValue]:

@@ -6,7 +6,7 @@ Images use RGB channel-first float32 arrays in [0, 1].
 Masks use boolean arrays, where True indicates an anomaly.
 """
 
-from collections.abc import Collection
+from collections.abc import Sequence
 from pathlib import Path
 from typing import BinaryIO
 
@@ -42,7 +42,7 @@ def load_mask(path: str | Path | BinaryIO, size: tuple[int, int]) -> BinaryMask:
         return np.asarray(image) != 0
 
 
-def load_images(paths: Collection[str | Path | BinaryIO], size: tuple[int, int]) -> ImageBatch:
+def load_images(paths: Sequence[str | Path | BinaryIO], size: tuple[int, int]) -> ImageBatch:
     height, width = size
 
     # preallocate continuous memory
@@ -54,7 +54,7 @@ def load_images(paths: Collection[str | Path | BinaryIO], size: tuple[int, int])
     return images
 
 
-def load_masks(paths: Collection[str | Path | BinaryIO], size: tuple[int, int]) -> BinaryMasks:
+def load_masks(paths: Sequence[str | Path | BinaryIO], size: tuple[int, int]) -> BinaryMasks:
     height, width = size
 
     # preallocate continuous memory

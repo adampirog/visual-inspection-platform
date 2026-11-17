@@ -44,7 +44,6 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
     Expected columns: object, split, label, image, mask.
     Paths are resolved relative to data_dir.
     Labels are mapped to booleans, where True indicates an anomaly.
-    An empty objects collection disables category filtering.
     """
 
     def __init__(
@@ -56,18 +55,16 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
         split: str = "train",
         objects: Collection[str] | None = None,
     ) -> None:
-        self.data_dir = Path(data_dir)
-        self.split = split
 
-        if not objects:
-            objects = None
-        elif isinstance(objects, str):
+        if isinstance(objects, str):
             objects = {objects}
-        else:
+        elif objects is not None:
             objects = set(objects)
 
+        self.split = split
         self.objects = objects
         self.label_map = label_map
+        self.data_dir = Path(data_dir)
         self.images = tuple(self.read_manifest(manifest))
 
     def read_manifest(self, manifest: str | Path) -> list[ImageRecord]:

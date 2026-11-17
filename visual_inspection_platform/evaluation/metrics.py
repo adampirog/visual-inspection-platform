@@ -25,12 +25,12 @@ def _binary_metrics(tp: int, fp: int, fn: int) -> dict[str, float]:
 
 def precision(y_pred: BinaryMasks, y_true: BinaryMasks) -> float:
     tp, fp, _ = _binary_counts(y_pred, y_true)
-    return _binary_metrics(tp, fp, 0)["precision"]
+    return tp / (tp + fp) if tp + fp else 0.0
 
 
 def recall(y_pred: BinaryMasks, y_true: BinaryMasks) -> float:
     tp, _, fn = _binary_counts(y_pred, y_true)
-    return _binary_metrics(tp, 0, fn)["recall"]
+    return tp / (tp + fn) if tp + fn else 0.0
 
 
 def dice(y_pred: BinaryMasks, y_true: BinaryMasks) -> float:

@@ -98,7 +98,7 @@ class ModelManager:
         for manifest_path in Path(path).rglob("MANIFEST.json"):
             try:
                 model = ServableModel(manifest_path.parent)
-            except (OSError, ValidationError):
+            except (OSError, ValidationError, UnicodeDecodeError):
                 logger.exception(f"Could not read manifest: {manifest_path}")
                 continue
 
