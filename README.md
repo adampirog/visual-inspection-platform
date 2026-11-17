@@ -35,13 +35,13 @@ Requires Python 3.13 or newer.
 git clone https://github.com/adampirog/visual-inspection-platform.git
 cd visual-inspection-platform
 
-pip install -e ".[pca,serving]"
+pip install -e ".[all]"
 ```
 
 For inference and serving only:
 
 ```bash
-pip install -e ".[serving]"
+pip install -e ".[serving, pca-inference]"
 ```
 
 ## Dataset
@@ -208,7 +208,7 @@ The platform is under active development, with successive milestones focused on 
 ## Development
 
 ```bash
-pip install -e ".[pca,serving]" --group dev
+pip install -e ".[all]" --group dev
 
 ruff check .
 pytest

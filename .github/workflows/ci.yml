@@ -33,8 +33,7 @@ jobs:
 
       - name: Install project and test dependencies
         run: |
-          python -m pip install -e ".[pca,serving]" \
-            --group dev
+          python -m pip install -e ".[all]" --group dev
 
       - name: Run Ruff
         run: ruff check .
@@ -84,7 +83,7 @@ jobs:
           from visual_inspection_platform.postprocessors import ThresholdPostprocessor
 
           # Ensure training dependencies are absent.
-          for name in ("sklearn", "scipy"):
+          for name in ("sklearn", "scipy", "tqdm", "prettytable"):
               assert find_spec(name) is None, f"{name} leaked into inference image"
 
           # Create a PCA artifact.

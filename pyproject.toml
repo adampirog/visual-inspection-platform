@@ -9,21 +9,35 @@ license = "MIT"
 license-files = ["LICENSE"]
 dynamic = ["version"]
 requires-python = ">=3.13"
+
+
 dependencies = [
     "numpy>=2",
     "pydantic>=2",
     "pillow>=13",
-    "tqdm>=4",
-    "prettytable>=3",
 ]
 
 [project.optional-dependencies]
-pca = ["scikit-learn>=1.9"]
+
+evaluation = [
+    "tqdm>=4",
+    "prettytable>=3",
+]
 
 serving = [
     "fastapi>=0.140",
     "uvicorn>=0.50",
     "python-multipart>=0.0.34",
+]
+
+pca-inference = []
+
+pca-training = [
+    "scikit-learn>=1.9",
+]
+
+all = [
+    "visual-inspection-platform[evaluation,serving,pca-training]",
 ]
 
 [dependency-groups]

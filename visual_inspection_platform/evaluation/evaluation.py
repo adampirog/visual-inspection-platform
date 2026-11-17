@@ -6,13 +6,11 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 import numpy as np
-from tqdm.auto import tqdm
 
 from visual_inspection_platform.postprocessors import Postprocessor
 from visual_inspection_platform.types import AnomalyMaps, BinaryMasks
 
 from .metrics import _binary_counts, _binary_metrics, _ranking_metrics
-from .result import EvaluationResult
 
 
 MetricsDict = dict[str, float]
@@ -99,11 +97,8 @@ def _macro_average(rows: dict[str, MetricsDict]) -> MetricsDict:
 
 
 def evaluate(
-    batches: Iterable[EvaluationBatch],
-    *,
-    postprocessor: Postprocessor | None = None,
-    verbose: bool = False,
-) -> EvaluationResult:
+    batches: Iterable[EvaluationBatch], *, postprocessor: Postprocessor | None = None
+) -> dict[str, dict[str, float]]:
     """
     Evaluate pixel-level segmentation performance across batches.
 
@@ -116,7 +111,7 @@ def evaluate(
     """
     accumulators = defaultdict(Accumulator)
 
-    for batch in tqdm(batches, desc="Evaluating", disable=not verbose):
+    for batch in batches:
         scores, labels, categories, masks = _prepare_batch(batch, postprocessor)
 
         for category in np.unique(categories):
@@ -145,4 +140,4 @@ def evaluate(
         rows["macro_avg"] = _macro_average(rows)
         report[section] = rows
 
-    return EvaluationResult(report)
+    return report

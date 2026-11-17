@@ -1,5 +1,7 @@
 from collections.abc import Iterator
 
+from tqdm.auto import tqdm
+
 from visual_inspection_platform.data import ImageRecordsDataset
 from visual_inspection_platform.models import AnomalyDetector
 
@@ -8,9 +10,14 @@ from .result import EvaluationResult
 
 
 def _batches(
-    model: AnomalyDetector, data: ImageRecordsDataset, batch_size: int
+    model: AnomalyDetector, data: ImageRecordsDataset, batch_size: int, *, verbose: bool = False
 ) -> Iterator[EvaluationBatch]:
-    for start in range(0, len(data), batch_size):
+    for start in tqdm(
+        range(0, len(data), batch_size),
+        desc="Evaluating",
+        unit="batch",
+        disable=not verbose,
+    ):
         batch = data[start : start + batch_size]
 
         yield EvaluationBatch(
@@ -36,6 +43,9 @@ def evaluate_model(
     if batch_size <= 0:
         raise ValueError("batch_size must be positive")
 
-    return evaluate(
-        _batches(model, data, batch_size), postprocessor=model.postprocessor, verbose=verbose
+    result = evaluate(
+        batches=_batches(model, data, batch_size, verbose=verbose),
+        postprocessor=model.postprocessor,
     )
+
+    return EvaluationResult(result)
