@@ -4,12 +4,12 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Annotated
 
-import numpy as np
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from PIL import Image, UnidentifiedImageError
+from PIL.Image import DecompressionBombError
 
-from visual_inspection_platform.data import preprocess_image
+from visual_inspection_platform.models import AnomalyDetector
+from visual_inspection_platform.utils.images import load_images
 from visual_inspection_platform.version import __version__
 
 from .manager import ModelManager
@@ -26,8 +26,16 @@ from .schema import (
 API_VERSION = "0.1.0"
 
 
+def _load_model(manager: ModelManager, model_id: str) -> AnomalyDetector:
+    """Load a model or return HTTP 404 if it is unknown."""
+    try:
+        return manager.load(model_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Model {model_id!r} not found.") from exc
+
+
 def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
-    """Create a serving application backed by a model-artifact directory."""
+    """Create the serving API for a model manager and artifact directory."""
     app = FastAPI(title="Visual Inspection Platform", version=API_VERSION)
     model_path = model_path.resolve()
 
@@ -57,35 +65,26 @@ def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
         files: Annotated[list[UploadFile], File(min_length=1, max_length=32)],
         include_masks: bool = False,
     ) -> PredictionResponse:
-        try:
-            model = manager.load(model_id)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"Model {model_id!r} not found") from exc
+        model = _load_model(manager, model_id)
 
         if include_masks and model.postprocessor is None:
-            raise HTTPException(status_code=409, detail="No postprocessor configured")
+            raise HTTPException(status_code=409, detail="No postprocessor configured.")
 
-        # Each registered serving model exposes its expected (height, width).
-        height, width = getattr(model, "image_size")
-        images = np.empty((len(files), 3, height, width), dtype=np.float32)
-
-        for i, upload in enumerate(files):
-            try:
-                with Image.open(upload.file) as image:
-                    images[i] = preprocess_image(image, (height, width))
-            except (UnidentifiedImageError, OSError) as exc:
-                raise HTTPException(
-                    status_code=422, detail=f"Invalid image: {upload.filename}"
-                ) from exc
+        try:
+            images = load_images([upload.file for upload in files], size=model.image_size)
+        except (OSError, DecompressionBombError) as exc:
+            raise HTTPException(
+                status_code=422, detail="Uploaded images could not be decoded."
+            ) from exc
 
         maps = model.predict(images)
-        masks = model.predict_mask(maps).tolist() if include_masks else None
+        masks = model.predict_mask(maps) if include_masks else None
 
         return PredictionResponse(
             model_id=model_id,
             filenames=[upload.filename or "" for upload in files],
             anomaly_maps=maps.tolist(),
-            masks=masks,
+            masks=masks.tolist() if masks is not None else None,
         )
 
     @app.post("/admin/models/refresh")
@@ -94,18 +93,14 @@ def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
 
     @app.post("/admin/models/{model_id}/load")
     def load_model(model_id: str) -> ModelLoadResponse:
-        try:
-            manager.load(model_id)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"Model {model_id!r} not found") from exc
+        _load_model(manager, model_id)
+
         return ModelLoadResponse(model_id=model_id, loaded=True)
 
     @app.delete("/admin/models/{model_id}/load")
     def unload_model(model_id: str) -> ModelLoadResponse:
-        try:
-            manager.unload(model_id)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"Model {model_id!r} not found") from exc
+        manager.unload(model_id)
+
         return ModelLoadResponse(model_id=model_id, loaded=False)
 
     return app
@@ -113,17 +108,22 @@ def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument("model_path", type=Path, help="Root directory of model artifacts")
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8000)
+
+    parser.add_argument("model_path", type=Path, help="Root directory containing model artifacts.")
+    parser.add_argument("--host", default="0.0.0.0", help="Server host.")
+    parser.add_argument("--port", type=int, default=8000, help="Server port.")
+
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+
     manager = ModelManager(create_default_registry())
     manager.discover(args.model_path)
-    uvicorn.run(create_app(manager, args.model_path), host=args.host, port=args.port)
+
+    app = create_app(manager=manager, model_path=args.model_path)
+    uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

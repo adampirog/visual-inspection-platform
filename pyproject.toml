@@ -20,10 +20,17 @@ dependencies = [
 [project.optional-dependencies]
 pca = ["scikit-learn>=1.9"]
 
+serving = [
+    "fastapi>=0.140",
+    "uvicorn>=0.50",
+    "python-multipart>=0.0.34",
+]
+
 [dependency-groups]
 dev = [
     "ruff",
-    "pytest>=9"
+    "pytest>=9",
+    "httpx2>=2",
 ]
 
 [project.urls]

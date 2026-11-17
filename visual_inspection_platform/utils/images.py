@@ -1,5 +1,6 @@
 from collections.abc import Collection
 from pathlib import Path
+from typing import BinaryIO
 
 import numpy as np
 from PIL import Image
@@ -7,7 +8,7 @@ from PIL import Image
 from visual_inspection_platform.types import BinaryMask, BinaryMasks, ImageBatch, ModelImage
 
 
-def load_image(path: str | Path, size: tuple[int, int] = (64, 64)) -> ModelImage:
+def load_image(path: str | Path | BinaryIO, size: tuple[int, int] = (64, 64)) -> ModelImage:
     """Load an RGB image as CHW float32 in [0, 1]."""
     height, width = size
 
@@ -19,7 +20,7 @@ def load_image(path: str | Path, size: tuple[int, int] = (64, 64)) -> ModelImage
     return array.transpose(2, 0, 1) / 255.0
 
 
-def load_mask(path: str | Path, size: tuple[int, int] = (64, 64)) -> BinaryMask:
+def load_mask(path: str | Path | BinaryIO, size: tuple[int, int] = (64, 64)) -> BinaryMask:
     """Load a binary mask; missing masks represent normal images."""
     height, width = size
 
@@ -29,7 +30,7 @@ def load_mask(path: str | Path, size: tuple[int, int] = (64, 64)) -> BinaryMask:
         return np.asarray(image) != 0
 
 
-def load_images(paths: Collection[str | Path], size: tuple[int, int]) -> ImageBatch:
+def load_images(paths: Collection[str | Path | BinaryIO], size: tuple[int, int]) -> ImageBatch:
     height, width = size
 
     # preallocate continuous memory
@@ -41,7 +42,7 @@ def load_images(paths: Collection[str | Path], size: tuple[int, int]) -> ImageBa
     return images
 
 
-def load_masks(paths: Collection[str | Path], size: tuple[int, int]) -> BinaryMasks:
+def load_masks(paths: Collection[str | Path | BinaryIO], size: tuple[int, int]) -> BinaryMasks:
     height, width = size
 
     # preallocate continuous memory
