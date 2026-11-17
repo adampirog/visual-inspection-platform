@@ -132,3 +132,8 @@ def test_invalid_ground_truth_dtype():
 
     with pytest.raises(ValueError):
         evaluate([batch])  # type:ignore
+
+
+def test_empty_evaluation():
+    with pytest.raises(ValueError, match="at least one image"):
+        evaluate([])

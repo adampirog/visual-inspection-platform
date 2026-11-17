@@ -1,7 +1,7 @@
 import pytest
 
 from visual_inspection_platform.models.pca import PCADetector
-from visual_inspection_platform.serving.manager import ModelManager
+from visual_inspection_platform.serving.manager import ModelManager, ModelNotFoundError
 from visual_inspection_platform.serving.registry import create_default_registry
 
 
@@ -20,6 +20,10 @@ def test_discover(model_path):
 
     assert manager.discover(model_path) == ()
     assert manager.n_models == 2
+
+    assert models["model-a"].image_size == (2, 3)
+    assert models["model-a"].has_postprocessor
+    assert not models["model-b"].has_postprocessor
 
 
 def test_model_lifecycle(manager):
@@ -46,5 +50,16 @@ def test_model_lifecycle(manager):
 
 
 def test_unknown_model(manager):
-    with pytest.raises(KeyError):
+    with pytest.raises(ModelNotFoundError):
         manager.load("unknown")
+
+
+def test_discover_invalid_manifest(model_path):
+    path = model_path / "invalid"
+    path.mkdir()
+    (path / "MANIFEST.json").write_text("{}", encoding="utf-8")
+
+    manager = ModelManager(create_default_registry())
+
+    assert manager.discover(model_path) == ("model-a", "model-b")
+    assert manager.n_models == 2

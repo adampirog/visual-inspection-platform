@@ -12,44 +12,39 @@ def test_global_threshold():
     maps = np.array([[[0.1, 0.5, 0.9]]], dtype=np.float32)
     processor = ThresholdPostprocessor(0.5)
 
-    np.testing.assert_array_equal(
-        processor(maps),
-        [[[False, False, True]]],
-    )
+    np.testing.assert_array_equal(processor(maps), [[[False, False, True]]])
 
 
 def test_global_calibration():
-    normal_maps = np.array([[[0.1, 0.2]], [[0.3, 0.4]]], dtype=np.float32)
-    processor = ThresholdPostprocessor.calibrate(normal_maps, quantile=1.0)
+    maps = np.array([[[0.0, 0.25]], [[0.5, 0.75]]], dtype=np.float32)
+    processor = ThresholdPostprocessor.calibrate(maps, quantile=0.5)
 
-    assert processor.threshold == pytest.approx(0.4)
-
-
-def test_spatial_calibration():
-    normal_maps = np.array([[[0.1, 0.5]], [[0.2, 0.8]]], dtype=np.float32)
-    processor = SpatialThresholdPostprocessor.calibrate(normal_maps, quantile=1.0)
-
-    maps = np.array([[[0.3, 0.6]]], dtype=np.float32)
-
-    np.testing.assert_array_equal(
-        processor(maps),
-        [[[True, False]]],
-    )
+    assert processor.threshold == pytest.approx(0.375)
 
 
-@pytest.mark.parametrize(
-    "processor",
-    [
-        ThresholdPostprocessor(0.4),
-        SpatialThresholdPostprocessor(
-            thresholds=np.array([[0.2, 0.5]], dtype=np.float32),
-            offset=0.1,
-        ),
-    ],
-)
-def test_roundtrip(processor, tmp_path):
+def test_spatial_calibration_and_roundtrip(tmp_path):
+    maps = np.array([[[0.0, 0.5]], [[0.25, 0.75]]], dtype=np.float32)
+
+    processor = SpatialThresholdPostprocessor.calibrate(maps, quantile=1.0, offset=0.125)
+
+    np.testing.assert_array_equal(processor.thresholds, [[0.25, 0.75]])
+
+    predictions = np.array([[[0.5, 0.875]]], dtype=np.float32)
+    expected = [[[True, False]]]
+
+    np.testing.assert_array_equal(processor(predictions), expected)
+
     manifest = processor.save(tmp_path)
     loaded = get_postprocessor_class(manifest.kind).load(tmp_path, manifest)
 
-    maps = np.array([[[0.35, 0.7]]], dtype=np.float32)
-    np.testing.assert_array_equal(loaded(maps), processor(maps))
+    assert loaded.offset == processor.offset  # type:ignore
+    np.testing.assert_array_equal(loaded.thresholds, processor.thresholds)  # type:ignore
+    np.testing.assert_array_equal(loaded(predictions), expected)
+
+
+def test_postprocessor_kind_mismatch(tmp_path):
+    processor = ThresholdPostprocessor(0.5)
+    manifest = processor.save(tmp_path)
+
+    with pytest.raises(ValueError, match="Postprocessor kind mismatch"):
+        SpatialThresholdPostprocessor.load(tmp_path, manifest)

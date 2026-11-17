@@ -131,3 +131,20 @@ def test_refresh_models(model_path):
 
         assert response.status_code == 200
         assert response.json() == {"added": []}
+
+
+def test_corrupted_model_artifact(manager, model_path):
+    np.savez(
+        model_path / "model-a" / "pca.npz",
+        mean=np.zeros(18, dtype=np.float32),
+    )
+
+    app = create_app(manager, model_path)
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/v1/models/model-a/predictions",
+            files=[("files", ("image.png", _png(), "image/png"))],
+        )
+
+    assert response.status_code == 500
