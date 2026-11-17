@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+
+FROM python:3.13-slim AS builder
+
+WORKDIR /build
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+COPY pyproject.toml README.md LICENSE ./
+COPY visual_inspection_platform ./visual_inspection_platform
+
+RUN python -m pip wheel \
+    --wheel-dir /wheels \
+    ".[serving]"
+
+
+FROM python:3.13-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
+    python -m pip install \
+        --no-cache-dir \
+        --no-index \
+        --find-links=/wheels \
+        "visual-inspection-platform[serving]" \
+    && useradd --create-home --uid 10001 appuser \
+    && mkdir -p /models \
+    && chown appuser:appuser /models
+
+USER appuser
+
+EXPOSE 8000
+ENTRYPOINT ["python", "-m", "visual_inspection_platform.serving.app"]
+CMD ["/models", "--host", "0.0.0.0", "--port", "8000"]
