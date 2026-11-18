@@ -35,10 +35,9 @@ def _load_model(manager: ModelManager, model_id: str) -> AnomalyDetector:
 
 
 def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
-    """
-    Create the serving API using an existing model manager.
+    """Create the serving API using an existing model manager.
 
-    model_path is the artifact directory scanned by refresh operations.
+    model_path is scanned by refresh operations, not during app creation.
     """
 
     app = FastAPI(title="Visual Inspection Platform", version=API_VERSION)
@@ -73,12 +72,11 @@ def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
         files: Annotated[list[UploadFile], File(min_length=1, max_length=32)],
         include_masks: bool = False,
     ) -> PredictionResponse:
-        """
-        Predict anomaly maps for uploaded images in request order.
+        """Predict anomaly maps for uploaded images in request order.
 
-        Images are resized to the model's expected resolution.
-        Scores are returned without normalization or resizing to the original
-        image dimensions. Binary masks require a configured postprocessor.
+        Images are resized to the model's input resolution. Scores are returned
+        at that resolution, without normalization. Requesting masks without a
+        configured postprocessor returns HTTP 409.
         """
         model = _load_model(manager, model_id)
 
@@ -115,7 +113,10 @@ def create_app(manager: ModelManager, model_path: Path) -> FastAPI:
 
     @app.delete("/admin/models/{model_id}/load")
     def unload_model(model_id: str) -> ModelLoadResponse:
-        """Release cached model state without removing its registration."""
+        """Release cached model state without removing its registration.
+
+        Unknown model IDs are treated as already unloaded.
+        """
         manager.unload(model_id)
 
         return ModelLoadResponse(model_id=model_id, loaded=False)

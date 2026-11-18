@@ -15,7 +15,10 @@ METRIC_NAMES = {
 
 
 class EvaluationResult(UserDict[str, dict[str, MetricsDict]]):
-    """Segmentation metrics grouped by evaluation type and category."""
+    """Segmentation metrics grouped by evaluation type and category.
+
+    String conversion produces a formatted report, with undefined metrics shown as N/A.
+    """
 
     def __str__(self) -> str:
         if not self.data:
@@ -52,7 +55,7 @@ class EvaluationResult(UserDict[str, dict[str, MetricsDict]]):
         return "\n\n".join(reports)
 
     def save(self, path: str | Path) -> None:
-        """Save a formatted text report (.txt) or raw metrics (.json)."""
+        """Save a .txt report or raw .json metrics, with nonfinite values as null."""
 
         path = Path(path)
 
@@ -65,9 +68,7 @@ class EvaluationResult(UserDict[str, dict[str, MetricsDict]]):
             raise ValueError(f"Format '{path.suffix}' not supported")
 
     def sanitize_json(self, value):
-        """
-        Change NaN to None in json serializable object
-        """
+        """Replace nonfinite floats with None in nested dictionaries, lists and tuples."""
         if isinstance(value, float) and not math.isfinite(value):
             return None
         if isinstance(value, dict):

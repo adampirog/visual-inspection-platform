@@ -10,11 +10,10 @@ from visual_inspection_platform.validation import validate_image_batch
 
 
 class PCADetector(AnomalyDetector):
-    """
-    Global PCA reconstruction model operating on flattened RGB images.
+    """Global PCA reconstruction detector operating on flattened CHW images.
 
-    The mean has shape [D] and components have shape [K, D],
-    where D = 3 * height * width and K is the number of components.
+    mean has shape [D] and components has shape [K, D], where
+    D = 3 * height * width and K is the number of orthonormal components.
     """
 
     MODEL_FAMILY = "pca"

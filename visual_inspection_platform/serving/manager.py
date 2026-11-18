@@ -15,8 +15,6 @@ logger = getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class ModelInfo:
-    """Serving metadata for a discovered model artifact."""
-
     model_id: str
     model_family: str
     path: str
@@ -26,10 +24,9 @@ class ModelInfo:
 
 
 class ServableModel:
-    """
-    Model artifact with eagerly loaded metadata and lazily loaded parameters.
+    """Model artifact with eagerly loaded metadata and lazily loaded parameters.
 
-    Loading and unloading cached state are synchronized.
+    Loading and unloading the cached model are synchronized.
     """
 
     def __init__(self, path: str | Path) -> None:
@@ -77,8 +74,6 @@ class ServableModel:
 
 
 class ModelManager:
-    """Manage discovered model artifacts and their in-memory instances."""
-
     def __init__(self, registry: ModelRegistry) -> None:
         self.registry = registry
 
@@ -113,11 +108,10 @@ class ModelManager:
         return tuple(sorted(new))
 
     def load(self, model_id: str) -> AnomalyDetector:
-        """
-        Load or retrieve a cached model by ID.
+        """Load or retrieve a cached model by ID.
 
-        Raises ModelNotFoundError for unknown IDs.
-        Artifact deserialization errors propagate to the caller.
+        Raises ModelNotFoundError for unknown IDs and RuntimeError for an
+        unregistered model family. Deserialization errors propagate to the caller.
         """
         with self._lock:
             try:
@@ -147,14 +141,14 @@ class ModelManager:
             model.unload()
 
     def is_loaded(self, model_id: str) -> bool:
-        """Return whether the requested model is currently loaded."""
+        """Return False for unknown or unloaded models."""
         with self._lock:
             model = self._models.get(model_id)
 
         return model.is_loaded if model is not None else False
 
     def available_models(self) -> tuple[ModelInfo, ...]:
-        """Return metadata for all discovered models."""
+        """Return metadata for all registered models, including unloaded ones."""
         with self._lock:
             models = tuple(self._models.values())
 

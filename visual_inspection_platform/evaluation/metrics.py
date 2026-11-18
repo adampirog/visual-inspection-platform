@@ -4,6 +4,7 @@ from visual_inspection_platform.types import AnomalyMaps, BinaryMasks
 
 
 def _binary_counts(y_pred: BinaryMasks, y_true: BinaryMasks) -> tuple[int, int, int]:
+    """Return counts in (true positives, false positives, false negatives) order."""
     if y_pred.shape != y_true.shape:
         raise ValueError("Prediction and ground-truth shapes must match")
 
@@ -24,26 +25,28 @@ def _binary_metrics(tp: int, fp: int, fn: int) -> dict[str, float]:
 
 
 def precision(y_pred: BinaryMasks, y_true: BinaryMasks) -> float:
+    """Return pixel precision, or zero when no pixels are predicted anomalous."""
     tp, fp, _ = _binary_counts(y_pred, y_true)
     return tp / (tp + fp) if tp + fp else 0.0
 
 
 def recall(y_pred: BinaryMasks, y_true: BinaryMasks) -> float:
+    """Return pixel recall, or zero when there are no anomalous ground-truth pixels."""
     tp, _, fn = _binary_counts(y_pred, y_true)
     return tp / (tp + fn) if tp + fn else 0.0
 
 
 def dice(y_pred: BinaryMasks, y_true: BinaryMasks) -> float:
+    """Return pixel Dice, or zero when both masks contain no anomalous pixels."""
     return _binary_metrics(*_binary_counts(y_pred, y_true))["dice"]
 
 
 def _ranking_metrics(y_pred: np.ndarray, y_true: np.ndarray) -> dict[str, float]:
-    """
-    Compute AUROC and average precision over flattened pixel scores.
+    """Compute AUROC and average precision over pooled pixels.
 
-    Equal scores share a ranking threshold. AUROC is undefined (NaN)
-    when only one ground-truth class is present.
-    AP is zero without positives and one without negatives.
+    Scores must be finite. Ties share a ranking threshold. AUROC is NaN
+    for single-class ground truth; AP is zero without positives and one
+    without negatives.
     """
 
     if y_pred.shape != y_true.shape:
@@ -94,5 +97,5 @@ def pixel_auroc(y_pred: AnomalyMaps, y_true: BinaryMasks) -> float:
 
 
 def pixel_ap(y_pred: AnomalyMaps, y_true: BinaryMasks) -> float:
-    """Pixel-level average precision, using recall-weighted precision."""
+    """Compute average precision, zero without positives and one without negatives."""
     return _ranking_metrics(y_pred, y_true)["ap"]

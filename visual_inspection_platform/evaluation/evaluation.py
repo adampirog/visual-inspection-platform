@@ -1,5 +1,3 @@
-"""Evaluate anomaly segmentation predictions by object category."""
-
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -17,10 +15,9 @@ MetricsDict = dict[str, float]
 
 
 class EvaluationBatch(TypedDict):
-    """
-    Aligned predictions, ground-truth masks and one category per image.
+    """Aligned predictions and ground-truth masks of shape [N, H, W].
 
-    Prediction and ground-truth arrays have shape [N, H, W].
+    categories contains one category per image in the same order.
     """
 
     y_true: BinaryMasks
@@ -30,8 +27,6 @@ class EvaluationBatch(TypedDict):
 
 @dataclass
 class Accumulator:
-    """Accumulate pixel scores, labels and confusion counts across batches."""
-
     scores: list[np.ndarray] = field(default_factory=list)
     labels: list[np.ndarray] = field(default_factory=list)
     tp: int = 0
@@ -99,15 +94,12 @@ def _macro_average(rows: dict[str, MetricsDict]) -> MetricsDict:
 def evaluate(
     batches: Iterable[EvaluationBatch], *, postprocessor: Postprocessor | None = None
 ) -> dict[str, dict[str, MetricsDict]]:
-    """
-    Evaluate pixel-level segmentation performance across batches.
+    """Evaluate pixel-level segmentation performance by category.
 
-    Metrics are computed over all pixels within each category, not averaged
-    over individual images or batches. Macro averages weight categories
-    equally and exclude undefined metric values.
-
-    Binary metrics are included only when a postprocessor is supplied.
-    The category name 'macro_avg' is reserved for aggregate results.
+    Metrics pool pixels within each category. Macro averages weight categories
+    equally and exclude undefined values. Results are grouped by metric type
+    (continuous and, if a postprocessor is supplied, binary), then category.
+    The category name 'macro_avg' is reserved; at least one image is required.
     """
     accumulators = defaultdict(Accumulator)
 

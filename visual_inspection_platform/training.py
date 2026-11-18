@@ -9,8 +9,6 @@ from visual_inspection_platform.models import AnomalyDetector, TrainingMetadata
 
 
 class TrainerConfig(BaseModel):
-    """Configuration used to train a detector."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     @classmethod
@@ -24,16 +22,15 @@ class TrainerConfig(BaseModel):
 
 
 class Trainer[DetectorType: AnomalyDetector, ConfigType: TrainerConfig](ABC):
-    """Base interface for fitting a detector from a model-specific configuration."""
-
     def __init__(self, config: ConfigType) -> None:
         self.config = config
 
     @abstractmethod
     def fit(self, data: ImageRecordsDataset) -> DetectorType:
-        """Fit a detector from the training dataset."""
+        """Fit and return a detector using the trainer's configuration."""
 
     def get_metadata(self) -> TrainingMetadata:
+        """Describe the trainer by its fully qualified class name and JSON configuration."""
         return TrainingMetadata(
             trainer=f"{type(self).__module__}.{type(self).__qualname__}",
             config=self.config.model_dump(mode="json"),

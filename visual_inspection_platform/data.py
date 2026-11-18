@@ -13,19 +13,21 @@ from visual_inspection_platform.utils.images import load_image, load_mask
 
 @dataclass(frozen=True, slots=True)
 class ImageRecord:
-    """Path and annotations for a single image."""
-
     path: Path
     mask: Path | None
     is_anomaly: bool
     category: str
 
     def load_image(self, size: tuple[int, int]) -> ModelImage:
-        """Load an RGB image as CHW float32 in [0, 1]."""
+        """Load an RGB CHW float32 image in [0, 1] at size (height, width)."""
         return load_image(self.path, size=size)
 
     def load_mask(self, size: tuple[int, int]) -> BinaryMask:
-        """Load a binary mask; missing masks represent normal images."""
+        """Load the mask at size (height, width).
+
+        Missing masks yield all-False masks for normal images and raise
+        ValueError for anomalous images.
+        """
         height, width = size
 
         if self.mask is None:
@@ -38,12 +40,12 @@ class ImageRecord:
 
 
 class ImageRecordsDataset(Sequence[ImageRecord]):
-    """
-    Lazily loaded images and annotations from a CSV manifest.
+    """Sequence of image records selected from a CSV manifest.
 
-    Expected columns: object, split, label, image, mask.
-    Paths are resolved relative to data_dir.
-    Labels are mapped to booleans, where True indicates an anomaly.
+    Expected columns: object, split, label, image, mask. Paths are relative
+    to data_dir; an empty mask field indicates a missing mask. label_map maps
+    labels to booleans, where True indicates an anomaly. Images and masks
+    are loaded on demand, with sizes given as (height, width).
     """
 
     def __init__(
@@ -68,7 +70,6 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
         self.images = tuple(self.read_manifest(manifest))
 
     def read_manifest(self, manifest: str | Path) -> list[ImageRecord]:
-        """Read records matching the selected split and categories."""
         result = []
         with open(manifest, encoding="utf-8") as handle:
             reader = csv.DictReader(handle)

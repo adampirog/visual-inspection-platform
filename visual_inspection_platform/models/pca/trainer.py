@@ -15,10 +15,12 @@ class PCAConfig(TrainerConfig):
 
 
 class PCATrainer(Trainer[PCADetector, PCAConfig]):
-    """Train a PCA reconstruction detector."""
-
     def fit(self, data: ImageRecordsDataset) -> PCADetector:
-        """Fit PCA on anomaly-free images using the configured resolution."""
+        """Fit PCA on anomaly-free images using the configured resolution.
+
+        The full training image batch is loaded into memory. Anomalous records
+        are rejected; the returned detector has no configured postprocessor.
+        """
 
         if any(record.is_anomaly for record in data):
             raise ValueError("PCA training requires anomaly-free data")

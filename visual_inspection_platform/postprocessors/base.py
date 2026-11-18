@@ -8,8 +8,6 @@ from visual_inspection_platform.types import AnomalyMaps, BinaryMasks
 
 
 class PostprocessorManifest(BaseModel):
-    """Serialized postprocessor identity and configuration."""
-
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     kind: str
@@ -55,7 +53,10 @@ class Postprocessor(ABC):
 
     @classmethod
     def load(cls, path: str | Path, manifest: PostprocessorManifest) -> Self:
-        """Load a postprocessor from its artifact."""
+        """Restore a postprocessor from its manifest and optional state directory.
+
+        The manifest kind must match the class.
+        """
         path = Path(path)
 
         if manifest.kind != cls.KIND:
