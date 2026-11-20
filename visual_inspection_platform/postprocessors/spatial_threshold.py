@@ -10,11 +10,11 @@ from .base import Postprocessor
 
 
 class SpatialThresholdPostprocessor(Postprocessor):
-    """
-    Apply location-specific thresholds with an additive offset.
+    """Apply location-specific thresholds with an additive offset.
 
-    Thresholds are broadcast over the input batch.
-    Spatial calibration assumes reasonably aligned images.
+    A pixel is anomalous only if its score strictly exceeds threshold + offset.
+    thresholds must have shape [H, W] matching the maps. Spatial calibration
+    assumes reasonably aligned images.
     """
 
     KIND = "spatial_threshold"

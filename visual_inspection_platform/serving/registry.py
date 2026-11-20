@@ -8,17 +8,14 @@ from visual_inspection_platform.models import AnomalyDetector
 
 @dataclass(frozen=True, slots=True)
 class ModelSpec:
-    """Import specification for a detector implementation."""
-
     module: str
     class_name: str
 
 
 class ModelRegistry(Mapping[str, type[AnomalyDetector]]):
-    """
-    Registry of lazily imported detector classes, keyed by model family.
+    """Registry of detector classes keyed by model family.
 
-    Model implementations are imported only when first requested.
+    Implementations are imported and cached on first lookup, not on registration.
     """
 
     def __init__(self) -> None:
@@ -36,7 +33,6 @@ class ModelRegistry(Mapping[str, type[AnomalyDetector]]):
             self._model_types.pop(model_family, None)
 
     def __getitem__(self, model_family: str) -> type[AnomalyDetector]:
-        """Resolve and cache the detector class for a model family."""
         with self._lock:
             if model_family in self._model_types:
                 return self._model_types[model_family]

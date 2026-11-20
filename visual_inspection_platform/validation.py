@@ -4,7 +4,7 @@ from .types import AnomalyMaps, ImageBatch, RGBImage
 
 
 def validate_rgb_image(image: RGBImage) -> None:
-    """Validate a decoded RGB image in HWC format."""
+    """Require a uint8 RGB array of shape [H, W, 3] with positive spatial dimensions."""
     if not isinstance(image, np.ndarray):
         raise TypeError("Image must be a NumPy array")
 
@@ -19,7 +19,10 @@ def validate_rgb_image(image: RGBImage) -> None:
 
 
 def validate_image_batch(images: ImageBatch) -> None:
-    """Validate model input in NCHW float32 format."""
+    """Require a nonempty float32 array of shape [N, 3, H, W].
+
+    Pixel values are not checked.
+    """
     if not isinstance(images, np.ndarray):
         raise TypeError("Images must be a NumPy array")
 
@@ -39,7 +42,10 @@ def validate_image_batch(images: ImageBatch) -> None:
 
 
 def validate_prediction(maps: AnomalyMaps, *, batch_shape: tuple[int, int, int, int]) -> None:
-    """Validate continuous anomaly maps against the input batch."""
+    """Require float32 anomaly maps of shape [N, H, W] matching the input batch.
+
+    Score values are not checked.
+    """
     if not isinstance(maps, np.ndarray):
         raise TypeError("Anomaly maps must be a NumPy array")
 

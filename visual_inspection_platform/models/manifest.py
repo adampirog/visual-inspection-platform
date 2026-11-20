@@ -20,12 +20,10 @@ class TrainingMetadata(BaseModel):
 
 
 class ModelManifest(BaseModel):
-    """
-    Model metadata readable without loading model parameters.
+    """Model metadata readable without loading model parameters.
 
-    image_size is stored as (height, width).
-    artifact_version identifies the model-specific serialization format.
-    manifest_version identifies the common metadata format.
+    image_size is (height, width). artifact_version identifies the model-specific
+    serialization format; manifest_version identifies the common metadata format.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)

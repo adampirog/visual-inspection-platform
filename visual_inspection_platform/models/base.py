@@ -10,12 +10,10 @@ from .manifest import ModelManifest, TrainingMetadata
 
 
 class AnomalyDetector(ABC):
-    """
-    Base interface for serializable anomaly detectors.
+    """Base interface for serializable anomaly detectors.
 
-    Each instance defines its expected image_size as (height, width).
-    Shared preprocessing is performed by the caller; model-specific
-    preprocessing is the responsibility of the detector.
+    image_size is (height, width). The caller performs shared image
+    preprocessing; the detector handles model-specific preprocessing.
     """
 
     MODEL_FAMILY: ClassVar[str]
@@ -40,17 +38,19 @@ class AnomalyDetector(ABC):
 
     @abstractmethod
     def predict(self, images: ImageBatch) -> AnomalyMaps:
-        """
-        Predict pixel-level anomaly scores.
+        """Predict pixel-level anomaly scores.
 
-        Inputs are RGB float32 arrays of shape [N, 3, H, W] in [0, 1].
-        Outputs are float32 arrays of shape [N, H, W].
-        Higher scores indicate stronger anomalies.
+        Inputs are RGB float32 arrays of shape [N, 3, H, W] in [0, 1],
+        with spatial dimensions matching image_size. Outputs are float32
+        arrays of shape [N, H, W]; higher scores indicate stronger anomalies.
         Implementations must not modify the input batch.
         """
 
     def predict_mask(self, maps: AnomalyMaps) -> BinaryMasks:
-        """Convert precomputed anomaly maps to masks using the configured postprocessor."""
+        """Convert anomaly maps to masks using the configured postprocessor.
+
+        Raises RuntimeError if no postprocessor is configured.
+        """
         if self.postprocessor is None:
             raise RuntimeError("No postprocessor configured")
 
@@ -61,7 +61,7 @@ class AnomalyDetector(ABC):
         """Save model-specific state; common metadata is handled by the base class."""
 
     def save(self, path: str | Path) -> None:
-        """Serialize the fitted model to disk."""
+        """Save the fitted detector, manifest and optional postprocessor to a directory."""
 
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
@@ -89,7 +89,10 @@ class AnomalyDetector(ABC):
 
     @classmethod
     def load(cls, path: str | Path) -> Self:
-        """Load a serialized model from disk."""
+        """Load a detector from an artifact directory, including its optional postprocessor.
+
+        The manifest must match the detector class's model family.
+        """
 
         path = Path(path)
         manifest = ModelManifest.load(path / "MANIFEST.json")
