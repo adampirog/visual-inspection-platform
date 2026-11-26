@@ -20,14 +20,15 @@ from pydantic import (
     PositiveInt,
     field_validator,
 )
+from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from visual_inspection_platform.data import ImageRecordsDataset
+from visual_inspection_platform.onnx import export_onnx
 from visual_inspection_platform.training import Trainer, TrainerConfig
 from visual_inspection_platform.utils import generate_model_id
 
 from .dataset import ImageTensorDataset
-from .export import export_onnx
 from .lightning_module import AutoencoderLightningModule
 from .model import AutoencoderDetector
 from .network import ConvolutionalAutoencoder
@@ -69,6 +70,15 @@ class AutoencoderConfig(TrainerConfig):
         return size
 
 
+class _ONNXWrapper(nn.Module):
+    def __init__(self, network: ConvolutionalAutoencoder) -> None:
+        super().__init__()
+        self.network = network
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        return (images - self.network(images)).square().mean(dim=1)
+
+
 class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
     @override
     def fit(
@@ -96,6 +106,8 @@ class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
             run_dir=run_dir,
             callbacks=callbacks,
         )
+
+        network = _ONNXWrapper(network)
 
         return AutoencoderDetector(
             onnx_model=export_onnx(network, self.config.image_size),
