@@ -9,7 +9,7 @@ from visual_inspection_platform.models import AnomalyDetector, TrainingMetadata
 
 
 class TrainerConfig(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
 
     @classmethod
     def load(cls, path: str | Path) -> Self:

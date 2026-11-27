@@ -103,10 +103,13 @@ class AnomalyDetector(ABC):
                 f"got '{manifest.model_family}'"
             )
 
-        model = cls._load(path, manifest=manifest)
+        if manifest.artifact_version != cls.ARTIFACT_VERSION:
+            raise ValueError(
+                f"Artifact version mismatch: expected '{cls.ARTIFACT_VERSION}', "
+                f"got '{manifest.artifact_version}'"
+            )
 
-        if model.model_id != manifest.model_id:
-            raise RuntimeError("Loaded model ID does not match manifest")
+        model = cls._load(path, manifest=manifest)
 
         model.training_metadata = manifest.training_metadata
 

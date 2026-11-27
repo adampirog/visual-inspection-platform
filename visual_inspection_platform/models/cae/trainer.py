@@ -129,6 +129,11 @@ class CAETrainer(Trainer[CAEDetector, CAEConfig]):
             if any(record.is_anomaly for record in dataset):
                 raise ValueError("Autoencoder training requires anomaly-free data")
 
+        if validation_data is not None and not {record.path for record in data}.isdisjoint(
+            record.path for record in validation_data
+        ):
+            raise ValueError("Training and validation datasets must be disjoint")
+
         if config.random_state is not None:
             seed_everything(config.random_state, workers=True)
 
@@ -178,7 +183,7 @@ class CAETrainer(Trainer[CAEDetector, CAEConfig]):
 
         trainer.fit(module, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
-        if not checkpoint.best_model_path:
+        if checkpoint.best_model_score is None or not checkpoint.best_model_score.isfinite().item():
             raise RuntimeError("Training did not produce a valid checkpoint")
 
         best_module = CAELightningModule.load_from_checkpoint(

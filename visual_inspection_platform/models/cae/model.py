@@ -10,7 +10,6 @@ from visual_inspection_platform.models import (
 )
 from visual_inspection_platform.postprocessors import Postprocessor
 from visual_inspection_platform.types import AnomalyMaps, ImageBatch
-from visual_inspection_platform.validation import validate_image_batch
 
 
 class CAEDetector(AnomalyDetector):
@@ -42,12 +41,21 @@ class CAEDetector(AnomalyDetector):
         self._onnx_model = onnx_model
         self._session = ort.InferenceSession(onnx_model, providers=["CPUExecutionProvider"])
 
+        if not any(
+            output.name == "anomaly_maps"
+            and output.type == "tensor(float)"
+            and output.shape[1:] == list(image_size)
+            for output in self._session.get_outputs()
+        ):
+            raise ValueError("ONNX graph must return float32 anomaly maps matching image_size")
+
     @override
     def predict(self, images: ImageBatch) -> AnomalyMaps:
-        validate_image_batch(images)
-
         if images.shape[2:] != self.image_size:
             raise ValueError(f"Expected image size {self.image_size}, got {images.shape[2:]}")
+
+        if images.shape[0] == 0:
+            raise ValueError("Batch must be nonempty")
 
         maps = self._session.run(["anomaly_maps"], {"images": images})[0]
 

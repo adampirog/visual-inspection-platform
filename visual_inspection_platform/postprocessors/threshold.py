@@ -17,6 +17,9 @@ class ThresholdPostprocessor(Postprocessor):
     def __init__(self, threshold: float):
         self.threshold = float(threshold)
 
+        if not np.isfinite(self.threshold):
+            raise ValueError("Threshold must be finite")
+
     def __call__(self, maps: AnomalyMaps) -> BinaryMasks:
         return maps > self.threshold
 
