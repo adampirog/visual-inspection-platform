@@ -5,6 +5,8 @@ from visual_inspection_platform.data import ImageRecordsDataset
 
 
 class ImageTensorDataset(Dataset[torch.Tensor]):
+    """Load preprocessed RGB tensors on demand, without masks or labels."""
+
     def __init__(self, data: ImageRecordsDataset, image_size: tuple[int, int]) -> None:
         self.data = data
         self.image_size = image_size
@@ -21,10 +23,10 @@ class ImageTensorDataset(Dataset[torch.Tensor]):
         *,
         random_state: int | None = None,
     ) -> tuple[Subset[torch.Tensor], Subset[torch.Tensor]]:
-        """Randomly split the dataset into training and validation subsets.
+        """Randomly split into training and validation subsets without overlap.
 
-        Both subsets contain at least one sample and share the underlying
-        dataset without loading or copying images.
+        Both subsets are nonempty and share the original dataset without loading
+        images. A fixed random_state reproduces the split for the same ordering.
         """
         if len(self) < 2:
             raise ValueError("At least two samples are required")

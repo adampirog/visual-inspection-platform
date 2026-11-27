@@ -33,10 +33,11 @@ def _decoder_block(in_channels: int, out_channels: int) -> nn.Sequential:
 
 
 class ConvolutionalAutoencoder(nn.Module):
-    """Reconstruct RGB images through a compressed spatial representation.
+    """Reconstruct RGB images of shape [N, 3, H, W] with values in [0, 1].
 
-    Inputs have shape [N, 3, H, W] and values in [0, 1].
-    Spatial dimensions must be divisible by 16.
+    Spatial dimensions must be divisible by 16. The latent representation
+    has shape [N, latent_channels, H/16, W/16]. Training requires more than
+    one value per channel at the bottleneck for batch normalization.
     """
 
     def __init__(self, latent_channels) -> None:
@@ -69,7 +70,7 @@ class ConvolutionalAutoencoder(nn.Module):
 
 
 class CAEAnomalyModule(nn.Module):
-    """Compute pixel-level squared reconstruction errors."""
+    """Return squared reconstruction errors averaged across channels as [N, H, W]."""
 
     def __init__(self, network: ConvolutionalAutoencoder) -> None:
         super().__init__()

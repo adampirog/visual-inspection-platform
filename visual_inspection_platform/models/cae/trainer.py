@@ -77,11 +77,10 @@ class CAETrainer(Trainer[CAEDetector, CAEConfig]):
         validation_data: ImageRecordsDataset | None = None,
         run_dir: str | Path | None = None,
     ) -> CAEDetector:
-        """Train and export a convolutional autoencoder detector.
+        """Train a detector using the data requirements of fit_network.
 
-        Training and validation data must be anomaly-free and disjoint.
-        If validation_data is omitted, a seeded random split is created.
-        The returned detector has no configured postprocessor.
+        If run_dir is omitted, checkpoints and logs are temporary and discarded
+        after training. The returned detector has no postprocessor.
         """
         model_id = generate_model_id(model_family=CAEDetector.MODEL_FAMILY)
 
@@ -112,12 +111,12 @@ class CAETrainer(Trainer[CAEDetector, CAEConfig]):
         *,
         validation_data: ImageRecordsDataset | None = None,
     ) -> ConvolutionalAutoencoder:
-        """Train and restore the best network in FP32 evaluation mode on CPU.
+        """Return the network with the lowest validation loss in FP32 evaluation mode on CPU.
 
-        Training and validation data must be anomaly-free and disjoint.
-        If validation_data is omitted, a random split is created.
-        Checkpoint selection uses validation reconstruction loss.
-        The run directory must not already exist.
+        Training and validation data must be nonempty, anomaly-free and disjoint.
+        If validation_data is omitted, data is split using validation_fraction
+        and random_state from the configuration. The run directory is created
+        if needed and receives configuration, checkpoints and logs.
         """
         config = self.config
 
@@ -179,7 +178,7 @@ class CAETrainer(Trainer[CAEDetector, CAEConfig]):
 
         trainer.fit(module, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
-        if not checkpoint.best_model_path:
+        if checkpoint.best_model_score is None or not checkpoint.best_model_score.isfinite().item():
             raise RuntimeError("Training did not produce a valid checkpoint")
 
         best_module = CAELightningModule.load_from_checkpoint(
