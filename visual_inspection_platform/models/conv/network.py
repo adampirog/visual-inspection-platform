@@ -39,7 +39,7 @@ class ConvolutionalAutoencoder(nn.Module):
     Spatial dimensions must be divisible by 16.
     """
 
-    def __init__(self, latent_channels: int = 64) -> None:
+    def __init__(self, latent_channels) -> None:
         super().__init__()
 
         self.encoder = nn.Sequential(
@@ -66,3 +66,14 @@ class ConvolutionalAutoencoder(nn.Module):
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         return self.decode(self.encode(images))
+
+
+class CAEAnomalyModule(nn.Module):
+    """Compute pixel-level squared reconstruction errors."""
+
+    def __init__(self, network: ConvolutionalAutoencoder) -> None:
+        super().__init__()
+        self.network = network
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        return (images - self.network(images)).square().mean(dim=1)

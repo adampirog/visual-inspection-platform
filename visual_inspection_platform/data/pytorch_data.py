@@ -34,10 +34,7 @@ class ImageTensorDataset(Dataset[torch.Tensor]):
 
         n_val = max(1, min(len(self) - 1, round(len(self) * validation_fraction)))
 
-        rng = torch.Generator()
-        if random_state is not None:
-            rng.manual_seed(random_state)
-
+        rng = torch.Generator().manual_seed(random_state) if random_state is not None else None
         train, val = random_split(self, [len(self) - n_val, n_val], generator=rng)
 
         return train, val

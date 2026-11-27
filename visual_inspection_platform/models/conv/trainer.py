@@ -20,21 +20,20 @@ from pydantic import (
     PositiveInt,
     field_validator,
 )
-from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from visual_inspection_platform.data import ImageRecordsDataset
-from visual_inspection_platform.onnx import export_onnx
+from visual_inspection_platform.data.pytorch_data import ImageTensorDataset
+from visual_inspection_platform.onnx import export_anomaly_detector
 from visual_inspection_platform.training import Trainer, TrainerConfig
 from visual_inspection_platform.utils import generate_model_id
 
-from .dataset import ImageTensorDataset
-from .lightning_module import AutoencoderLightningModule
-from .model import AutoencoderDetector
-from .network import ConvolutionalAutoencoder
+from .lightning_module import CAELightningModule
+from .model import CAEDetector
+from .network import CAEAnomalyModule, ConvolutionalAutoencoder
 
 
-class AutoencoderConfig(TrainerConfig):
+class CAEConfig(TrainerConfig):
     # Architecture
     latent_channels: PositiveInt = 64
 
@@ -64,22 +63,13 @@ class AutoencoderConfig(TrainerConfig):
     @field_validator("image_size")
     @classmethod
     def validate_image_size(cls, size: tuple[int, int]) -> tuple[int, int]:
-        if any(dimension % 16 for dimension in size):
-            raise ValueError("Image dimensions must be divisible by 16")
+        if any(dimension < 32 or dimension % 16 for dimension in size):
+            raise ValueError("Image dimensions must be at least 32 and divisible by 16")
 
         return size
 
 
-class _ONNXWrapper(nn.Module):
-    def __init__(self, network: ConvolutionalAutoencoder) -> None:
-        super().__init__()
-        self.network = network
-
-    def forward(self, images: torch.Tensor) -> torch.Tensor:
-        return (images - self.network(images)).square().mean(dim=1)
-
-
-class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
+class AutoencoderTrainer(Trainer[CAEDetector, CAEConfig]):
     @override
     def fit(
         self,
@@ -88,29 +78,24 @@ class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
         validation_data: ImageRecordsDataset | None = None,
         run_dir: str | Path | None = None,
         callbacks: Sequence[Callback] = (),
-    ) -> AutoencoderDetector:
+    ) -> CAEDetector:
         """Train and export a convolutional autoencoder detector.
 
         Training and validation data must be anomaly-free and disjoint.
         If validation_data is omitted, a seeded random split is created.
         The returned detector has no configured postprocessor.
         """
-        model_id = generate_model_id(model_family=AutoencoderDetector.MODEL_FAMILY)
+        model_id = generate_model_id(model_family=CAEDetector.MODEL_FAMILY)
 
         if run_dir is None:
             run_dir = Path("runs") / model_id
 
         network = self.fit_network(
-            data,
-            validation_data=validation_data,
-            run_dir=run_dir,
-            callbacks=callbacks,
+            data, validation_data=validation_data, run_dir=run_dir, callbacks=callbacks
         )
 
-        network = _ONNXWrapper(network)
-
-        return AutoencoderDetector(
-            onnx_model=export_onnx(network, self.config.image_size),
+        return CAEDetector(
+            onnx_model=export_anomaly_detector(CAEAnomalyModule(network), self.config.image_size),
             image_size=self.config.image_size,
             model_id=model_id,
             training_metadata=self.get_metadata(),
@@ -126,6 +111,8 @@ class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
     ) -> ConvolutionalAutoencoder:
         """Train and restore the best network in FP32 evaluation mode on CPU.
 
+        Training and validation data must be anomaly-free and disjoint.
+        If validation_data is omitted, a random split is created.
         Checkpoint selection uses validation reconstruction loss.
         The run directory must not already exist.
         """
@@ -140,14 +127,16 @@ class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
             if any(record.is_anomaly for record in dataset):
                 raise ValueError("Autoencoder training requires anomaly-free data")
 
-        seed_everything(config.random_state, workers=True)
+        if config.random_state is not None:
+            seed_everything(config.random_state, workers=True)
 
         run_dir = Path(run_dir)
         run_dir.mkdir(parents=True, exist_ok=False)
+        config.save(run_dir / "config.json")
 
         train_loader, val_loader = self._create_dataloaders(data, validation_data)
 
-        module = AutoencoderLightningModule(
+        module = CAELightningModule(
             latent_channels=config.latent_channels,
             learning_rate=config.learning_rate,
             weight_decay=config.weight_decay,
@@ -161,7 +150,6 @@ class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
             monitor="val_loss",
             mode="min",
             save_top_k=1,
-            save_last=True,
         )
 
         trainer = LightningTrainer(
@@ -173,10 +161,7 @@ class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
             gradient_clip_val=config.gradient_clip_val,
             accumulate_grad_batches=config.accumulate_grad_batches,
             default_root_dir=str(run_dir),
-            logger=CSVLogger(
-                save_dir=str(run_dir),
-                name="metrics",
-            ),
+            logger=CSVLogger(save_dir=str(run_dir), name="metrics"),
             callbacks=[
                 checkpoint,
                 EarlyStopping(
@@ -190,18 +175,13 @@ class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
             ],
         )
 
-        trainer.fit(
-            module,
-            train_dataloaders=train_loader,
-            val_dataloaders=val_loader,
-        )
+        trainer.fit(module, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
         if not checkpoint.best_model_path:
             raise RuntimeError("Training did not produce a valid checkpoint")
 
-        best_module = AutoencoderLightningModule.load_from_checkpoint(
-            checkpoint.best_model_path,
-            map_location="cpu",
+        best_module = CAELightningModule.load_from_checkpoint(
+            checkpoint.best_model_path, map_location="cpu"
         )
 
         return best_module.network.cpu().float().eval()
@@ -218,10 +198,7 @@ class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
         val: Dataset[torch.Tensor]
 
         if validation_data is None:
-            train, val = dataset.split(
-                config.validation_fraction,
-                random_state=config.random_state,
-            )
+            train, val = dataset.split(config.validation_fraction, random_state=config.random_state)
         else:
             train = dataset
             val = ImageTensorDataset(validation_data, config.image_size)
@@ -241,9 +218,11 @@ class AutoencoderTrainer(Trainer[AutoencoderDetector, AutoencoderConfig]):
 
         pin_memory = config.accelerator in ("auto", "cuda") and torch.cuda.is_available()
 
-        rng = torch.Generator()
-        if config.random_state is not None:
-            rng.manual_seed(config.random_state)
+        rng = (
+            torch.Generator().manual_seed(config.random_state)
+            if config.random_state is not None
+            else torch.default_generator
+        )
 
         return DataLoader(
             dataset,

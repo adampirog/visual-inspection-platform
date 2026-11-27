@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from .network import ConvolutionalAutoencoder
 
 
-class AutoencoderLightningModule(LightningModule):
+class CAELightningModule(LightningModule):
     """Train a convolutional autoencoder using reconstruction loss.
 
     Training and validation batches contain only input images.
@@ -35,12 +35,14 @@ class AutoencoderLightningModule(LightningModule):
         self.scheduler_factor = scheduler_factor
         self.scheduler_patience = scheduler_patience
 
+    @override
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         return self.network(images)
 
     def _reconstruction_loss(self, images: torch.Tensor) -> torch.Tensor:
         return F.mse_loss(self(images), images)
 
+    @override
     def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
         loss = self._reconstruction_loss(batch)
 
@@ -55,6 +57,7 @@ class AutoencoderLightningModule(LightningModule):
 
         return loss
 
+    @override
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> None:
         loss = self._reconstruction_loss(batch)
 

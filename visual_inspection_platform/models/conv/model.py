@@ -13,7 +13,7 @@ from visual_inspection_platform.types import AnomalyMaps, ImageBatch
 from visual_inspection_platform.validation import validate_image_batch
 
 
-class AutoencoderDetector(AnomalyDetector):
+class CAEDetector(AnomalyDetector):
     """Reconstruction-based anomaly detector backed by ONNX Runtime.
 
     The ONNX graph computes pixel-level squared reconstruction errors
