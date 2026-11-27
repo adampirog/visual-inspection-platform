@@ -16,8 +16,7 @@ class PostprocessorManifest(BaseModel):
 
 
 class Postprocessor(ABC):
-    """
-    Convert anomaly maps into boolean segmentation masks.
+    """Convert anomaly maps into boolean segmentation masks.
 
     Input and output shapes are identical: [N, H, W].
     True indicates an anomalous pixel.

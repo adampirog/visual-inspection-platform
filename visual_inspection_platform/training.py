@@ -27,7 +27,7 @@ class Trainer[DetectorType: AnomalyDetector, ConfigType: TrainerConfig](ABC):
 
     @abstractmethod
     def fit(self, data: ImageRecordsDataset) -> DetectorType:
-        """Fit and return a detector using the trainer's configuration."""
+        """Return a fitted detector; training data must contain only normal images."""
 
     def get_metadata(self) -> TrainingMetadata:
         """Describe the trainer by its fully qualified class name and JSON configuration."""

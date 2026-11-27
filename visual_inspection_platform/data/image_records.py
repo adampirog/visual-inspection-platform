@@ -44,8 +44,9 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
 
     Expected columns: object, split, label, image, mask. Paths are relative
     to data_dir; an empty mask field indicates a missing mask. label_map maps
-    labels to booleans, where True indicates an anomaly. Images and masks
-    are loaded on demand, with sizes given as (height, width).
+    labels to booleans, where True indicates an anomaly. objects=None selects
+    all categories; an empty collection selects none. Images and masks are
+    loaded on demand, with sizes given as (height, width).
     """
 
     def __init__(
@@ -115,6 +116,7 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
         return self.images[key]
 
     def load_images(self, size: tuple[int, int]) -> ImageBatch:
+        """Load all selected images into memory in dataset order."""
         height, width = size
 
         # preallocate memory
@@ -126,6 +128,7 @@ class ImageRecordsDataset(Sequence[ImageRecord]):
         return images
 
     def load_masks(self, size: tuple[int, int]) -> BinaryMasks:
+        """Load all selected masks into memory in dataset order."""
         height, width = size
 
         # preallocate memory

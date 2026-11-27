@@ -81,8 +81,7 @@ class ModelManager:
         self._lock = Lock()
 
     def discover(self, path: str | Path) -> tuple[str, ...]:
-        """
-        Recursively register new artifacts identified by MANIFEST.json.
+        """Recursively register new artifacts identified by MANIFEST.json.
 
         Unreadable or invalid manifests are skipped and logged.
         Previously registered IDs remain unchanged.
@@ -129,8 +128,7 @@ class ModelManager:
         return servable.load(model_class)
 
     def unload(self, model_id: str) -> None:
-        """
-        Release the cached model while retaining its registration.
+        """Release the cached model while retaining its registration.
 
         Unknown model IDs are ignored.
         """
@@ -148,7 +146,7 @@ class ModelManager:
         return model.is_loaded if model is not None else False
 
     def available_models(self) -> tuple[ModelInfo, ...]:
-        """Return metadata for all registered models, including unloaded ones."""
+        """Return metadata without loading any model parameters."""
         with self._lock:
             models = tuple(self._models.values())
 

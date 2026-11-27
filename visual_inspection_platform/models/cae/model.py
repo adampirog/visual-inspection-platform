@@ -14,10 +14,10 @@ from visual_inspection_platform.validation import validate_image_batch
 
 
 class CAEDetector(AnomalyDetector):
-    """Reconstruction-based anomaly detector backed by ONNX Runtime.
+    """Detect anomalies using channel-averaged squared reconstruction errors.
 
-    The ONNX graph computes pixel-level squared reconstruction errors
-    averaged across color channels.
+    onnx_model must contain a self-contained graph with input images and
+    output anomaly_maps, named accordingly. Inference runs on CPU.
     """
 
     MODEL_FAMILY = "convolutional_autoencoder"
