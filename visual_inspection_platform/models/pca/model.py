@@ -39,6 +39,15 @@ class PCADetector(AnomalyDetector):
         self.mean = np.asarray(mean, dtype=np.float32)
         self.components = np.asarray(components, dtype=np.float32)
 
+        if self.mean.shape != (3 * image_size[0] * image_size[1],):
+            raise ValueError("PCA mean must match the flattened image size")
+
+        if self.components.ndim != 2 or self.components.shape[1] != self.mean.size:
+            raise ValueError("PCA components must have shape [K, D] matching the mean")
+
+        if not np.isfinite(self.mean).all() or not np.isfinite(self.components).all():
+            raise ValueError("PCA parameters must be finite")
+
     def predict(self, images: ImageBatch) -> AnomalyMaps:
         """Return squared reconstruction errors averaged across color channels."""
 

@@ -34,8 +34,7 @@ def evaluate_model(
     batch_size: int = 32,
     verbose: bool = False,
 ) -> EvaluationResult:
-    """
-    Evaluate a fitted detector at its expected input resolution.
+    """Evaluate a fitted detector at its expected input resolution.
 
     Images and masks are loaded in batches. Binary metrics use the
     model's configured postprocessor, if present.

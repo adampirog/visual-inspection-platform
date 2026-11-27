@@ -36,8 +36,20 @@ pca-training = [
     "scikit-learn>=1.9",
 ]
 
+cae-inference = [
+    "onnxruntime>=1.32",
+]
+
+cae-training = [
+    "torch>=2.9",
+    "lightning>=2.6",
+    "onnx>=1.20",
+    "onnxscript>=0.6",
+    "visual-inspection-platform[cae-inference]",
+]
+
 all = [
-    "visual-inspection-platform[evaluation,serving,pca-training]",
+    "visual-inspection-platform[evaluation,serving,pca-training,cae-training]",
 ]
 
 [dependency-groups]
@@ -69,6 +81,17 @@ addopts = [
     "--strict-config",
 ]
 testpaths = ["tests"]
+filterwarnings = [
+    # CPU-only training tests
+    "ignore:GPU available but not used",
+
+    # Small synthetic training datasets
+    "ignore:The .*_dataloader.*does not have many workers",
+    "ignore:The number of training batches.*is smaller than the logging interval",
+
+    # Upstream Lightning/PyTorch compatibility
+    'ignore:`isinstance\(treespec, LeafSpec\)` is deprecated',
+]
 
 [tool.ruff]
 line-length = 100
@@ -94,3 +117,6 @@ max-complexity = 10
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
+
+[tool.ruff.lint.pep8-naming]
+extend-ignore-names = ["F", "L"]
