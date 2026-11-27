@@ -319,8 +319,6 @@ docker run --rm \
 
 The container uses a multi-stage build and runs as a non-root user without model training dependencies.
 
-The default Dockerfile currently supports PCA inference. CAE deployment requires adding the `cae-inference` extra to the builder and runtime installation commands.
-
 ## Roadmap
 
 ### Models

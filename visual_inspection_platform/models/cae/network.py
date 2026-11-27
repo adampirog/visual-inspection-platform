@@ -40,7 +40,7 @@ class ConvolutionalAutoencoder(nn.Module):
     one value per channel at the bottleneck for batch normalization.
     """
 
-    def __init__(self, latent_channels) -> None:
+    def __init__(self, latent_channels: int) -> None:
         super().__init__()
 
         self.encoder = nn.Sequential(
