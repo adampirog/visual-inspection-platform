@@ -5,27 +5,68 @@
 ![Python](https://img.shields.io/badge/python-3.13%2B-blue)
 ![License](https://img.shields.io/github/license/adampirog/visual-inspection-platform)
 
-An end-to-end computer vision platform for industrial anomaly detection and defect segmentation, designed around reproducible experimentation, modular model development and efficient inference.
+An extensible computer vision platform for industrial anomaly detection and defect segmentation, designed for reproducible experimentation, modular model development and efficient deployment.
 
-The platform covers the complete model lifecycle: data preparation, training, evaluation, serialization and deployment through a unified serving API.
+The platform provides a unified workflow for training, evaluating and serving classical machine learning and deep learning models, with inference independent of their training frameworks.
 
 ## Features
 
-- Unified interfaces for anomaly detection models and trainers.
-- Shared image preprocessing for training and inference.
-- Dataset-independent, manifest-based data loading.
-- Pixel-level anomaly maps and binary defect segmentation.
-- Calibrated global and spatial thresholding.
-- Evaluation with pixel-level AUROC, Average Precision, Precision, Recall and Dice, including per-category results and macro averages.
-- Self-contained model artifacts with training metadata and postprocessor state.
-- FastAPI serving with model discovery, lazy loading and batch inference.
-- Separation of training and inference dependencies.
+- **Unified model API** — interchangeable anomaly detectors and trainers with consistent prediction, serialization and evaluation interfaces.
+- **Flexible data pipeline** — dataset-independent CSV manifests, shared image preprocessing and on-demand image loading.
+- **Deep learning training** — PyTorch and Lightning integration with configurable optimization, learning rate scheduling, early stopping and checkpoint selection.
+- **Defect segmentation** — pixel-level anomaly maps with calibrated global and spatial thresholding.
+- **Evaluation** — pixel-level AUROC, Average Precision, Precision, Recall and Dice, with per-category results and macro averages.
+- **Efficient inference** — lightweight NumPy and ONNX Runtime implementations, dynamic batching and model-specific dependency isolation.
+- **Model artifacts** — self-contained, versioned artifacts with training metadata and postprocessor state.
+- **Deployment** — multi-model FastAPI serving with artifact discovery, lazy loading, batch inference and Docker support.
 
-## Supported models
+## Supported Models
 
-| Model | Approach                    |
-| ----- | --------------------------- |
-| PCA   | Global image reconstruction |
+| Model                           | Approach                       | Training           | Inference    |
+| ------------------------------- | ------------------------------ | ------------------ | ------------ |
+| PCA                             | Global image reconstruction    | Scikit-learn       | NumPy        |
+| Convolutional Autoencoder (CAE) | Nonlinear image reconstruction | PyTorch, Lightning | ONNX Runtime |
+
+All models implement the same `AnomalyDetector` interface, producing pixel-level anomaly scores that can be converted into binary segmentation masks through a configurable postprocessor.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    DATA[Manifest-based dataset] --> PRE[Shared preprocessing]
+
+    subgraph Training
+        PRE --> TRAINER[Trainer]
+        TRAINER --> MODEL[Model-specific training]
+        MODEL --> DETECTOR[AnomalyDetector]
+    end
+
+    DETECTOR --> CAL[Postprocessor calibration]
+    CAL --> ARTIFACT[Versioned model artifact]
+
+    subgraph Inference
+        ARTIFACT --> LOAD[AnomalyDetector]
+        INPUT[Input images] --> PROCESS[Shared preprocessing]
+        PROCESS --> LOAD
+        LOAD --> MAPS[Anomaly maps]
+        MAPS --> POST[Postprocessor]
+        POST --> MASKS[Segmentation masks]
+    end
+
+    MAPS --> EVAL[Evaluation]
+    MASKS --> EVAL
+    MAPS --> API[Serving API]
+    MASKS --> API
+```
+
+The architecture is built around independent components with explicit interfaces and responsibilities:
+
+- **Data and preprocessing** are shared across model families, ensuring consistent inputs during training, evaluation and serving.
+- **Training and inference** are decoupled. Deep learning models are exported to ONNX, removing PyTorch and Lightning from the inference environment.
+- **Postprocessing** is independent of the detector, allowing segmentation thresholds to be calibrated and replaced without retraining.
+- **Evaluation and serving** operate on the common detector interface rather than model-specific implementations.
+
+Configurations and artifact metadata are validated using Pydantic. Model-specific dependencies are isolated through optional installation extras.
 
 ## Installation
 
@@ -38,17 +79,31 @@ cd visual-inspection-platform
 pip install -e ".[all]"
 ```
 
-For inference and serving only:
+For environments requiring only selected functionality, the following extras are available:
+
+| Extra           | Functionality                           |
+| --------------- | --------------------------------------- |
+| `pca-inference` | PCA inference                           |
+| `pca-training`  | PCA training and inference              |
+| `cae-inference` | CAE inference                           |
+| `cae-training`  | CAE training, ONNX export and inference |
+| `evaluation`    | Model evaluation and reporting          |
+| `serving`       | HTTP inference API                      |
+| `all`           | All supported functionality             |
+
+For inference and serving without training dependencies:
 
 ```bash
-pip install -e ".[serving, pca-inference]"
+pip install -e ".[serving,pca-inference,cae-inference]"
 ```
 
-## Dataset
+For GPU training, install a PyTorch build compatible with the target hardware using the [official installation instructions](https://pytorch.org/get-started/locally/).
+
+## Datasets
 
 The primary benchmark is [Visual Anomaly (VisA)](https://github.com/amazon-science/spot-diff), an industrial anomaly detection dataset containing 10,821 images across 12 object categories, with image-level and pixel-level annotations.
 
-Download the dataset and the official one-class split manifest:
+Download the dataset and its official one-class split manifest:
 
 ```bash
 mkdir -p data/visa
@@ -64,29 +119,24 @@ curl -L \
     -o data/visa/1cls.csv
 ```
 
-The platform operates directly on the original dataset structure using the provided CSV manifest. No image duplication or directory reorganization is required.
+The platform operates directly on the original dataset structure. No image duplication or directory reorganization is required.
 
-The dataset root should contain the object directories, such as `cashew`, `candle` and `pcb1`.
-
-Other datasets can be integrated using a CSV manifest with the following columns:
+Custom datasets can be integrated using a CSV manifest with the following columns:
 
 ```text
 object,split,label,image,mask
 ```
 
-Image and mask paths are relative to the dataset root. Dataset-specific labels are mapped to a common boolean representation.
+Image and mask paths are relative to the dataset root. Dataset-specific labels are mapped to a boolean representation, where `True` indicates an anomaly.
 
-## Usage
+## Quickstart
 
-### Training and evaluation
+The following example demonstrates the complete workflow using a convolutional autoencoder trained on the `cashew` category.
 
-Train a PCA detector on normal images from the `cashew` category, reserving a subset for postprocessor calibration.
+### Data Preparation
 
 ```python
 from visual_inspection_platform.data import ImageRecordsDataset
-from visual_inspection_platform.evaluation.evaluate_model import evaluate_model
-from visual_inspection_platform.models.pca.trainer import PCAConfig, PCATrainer
-from visual_inspection_platform.postprocessors import ThresholdPostprocessor
 
 
 dataset_config = {
@@ -96,41 +146,118 @@ dataset_config = {
     "objects": {"cashew"},
 }
 
-train = ImageRecordsDataset(**dataset_config, split="train")
+data = ImageRecordsDataset(**dataset_config, split="train")
 test = ImageRecordsDataset(**dataset_config, split="test")
 
-calibration, train = train[:64], train[64:]
+calibration = data[:64]
+validation = data[64:128]
+train = data[128:]
+```
+
+Training, validation and calibration use disjoint subsets of normal images. The annotated test set is reserved for final evaluation.
+
+### Training
+
+```python
+from visual_inspection_platform.models.cae.trainer import CAEConfig, CAETrainer
+
+
+trainer = CAETrainer(
+    CAEConfig(
+        image_size=(128, 128),
+        latent_channels=64,
+        batch_size=32,
+        max_epochs=100,
+        random_state=42,
+        accelerator="cpu",
+    )
+)
+
+model = trainer.fit(
+    train,
+    validation_data=validation,
+    run_dir="runs/cae",
+)
+```
+
+The trainer selects the best checkpoint according to validation reconstruction loss and exports the trained network to ONNX. The returned detector is ready for inference.
+
+The run directory contains the training configuration, checkpoints and CSV experiment logs.
+
+<details>
+<summary>Alternative: PCA training</summary>
+
+```python
+from visual_inspection_platform.models.pca.trainer import PCAConfig, PCATrainer
+
 
 trainer = PCATrainer(
     PCAConfig(n_components=32, image_size=(64, 64))
 )
 
 model = trainer.fit(train)
+```
+
+The remaining calibration, evaluation and deployment workflow is identical.
+
+</details>
+
+### Calibration and Evaluation
+
+```python
+from visual_inspection_platform.evaluation.evaluate_model import evaluate_model
+from visual_inspection_platform.postprocessors import ThresholdPostprocessor
+
 
 normal_maps = model.predict(
     calibration.load_images(model.image_size)
 )
 
 model.postprocessor = ThresholdPostprocessor.calibrate(
-    normal_maps, quantile=0.995
+    normal_maps,
+    quantile=0.995,
 )
 
 result = evaluate_model(model, test, batch_size=32, verbose=True)
-print(result)
 
+print(result)
+result.save("evaluation.json")
+```
+
+Evaluation includes continuous anomaly detection metrics and, when a postprocessor is configured, binary segmentation metrics.
+
+For spatially aligned images, `SpatialThresholdPostprocessor` provides location-specific threshold calibration through the same interface.
+
+### Serialization
+
+```python
 model.save(f"artifacts/{model.model_id}")
 ```
 
-### Inference
+Model artifacts contain a common manifest, model-specific parameters and optional postprocessor state.
 
-Serialized models can be loaded independently of their training environment.
+```text
+artifacts/
+└── MODEL_ID/
+    ├── MANIFEST.json
+    ├── model.onnx
+    └── postprocessor/
+```
+
+The example represents a CAE artifact. PCA artifacts store their parameters in `pca.npz`.
+
+Training checkpoints and experiment logs are separate from deployable artifacts and are not required for inference.
+
+## Deployment
+
+### Python Inference
 
 ```python
-from visual_inspection_platform.models.pca import PCADetector
+from visual_inspection_platform.models.cae import CAEDetector
 from visual_inspection_platform.utils.images import load_images
 
 
-model = PCADetector.load("artifacts/MODEL_ID")
+model = CAEDetector.load("artifacts/MODEL_ID")
 
 images = load_images(["image.png"], size=model.image_size)
 
@@ -138,7 +265,13 @@ anomaly_maps = model.predict(images)
 masks = model.predict_mask(anomaly_maps)
 ```
 
-### Serving
+For PCA artifacts, use `PCADetector` from `visual_inspection_platform.models.pca`.
+
+Detectors accept RGB float32 arrays of shape `[N, 3, H, W]` with values in `[0, 1]` and return anomaly maps of shape `[N, H, W]`. Binary mask prediction requires a configured postprocessor.
+
+CAE inference uses ONNX Runtime on CPU and requires no deep learning training framework.
+
+### REST API
 
 Start the inference server:
 
@@ -160,11 +293,20 @@ curl -X POST \
     -F "files=@image.png"
 ```
 
-Interactive API documentation is available at `http://localhost:8000/docs`.
+The server supports multiple model families, lazy model loading and batch inference.
+
+| Method | Endpoint                            | Purpose                |
+| ------ | ----------------------------------- | ---------------------- |
+| GET    | `/health`                           | Service health         |
+| GET    | `/v1/models`                        | Available models       |
+| POST   | `/v1/models/{model_id}/predictions` | Batch inference        |
+| POST   | `/admin/models/refresh`             | Discover new artifacts |
+| POST   | `/admin/models/{model_id}/load`     | Load a model           |
+| DELETE | `/admin/models/{model_id}/load`     | Unload a model         |
+
+Interactive API documentation is available at [localhost:8000/docs](http://localhost:8000/docs).
 
 ### Docker
-
-Build and run the inference container:
 
 ```bash
 docker build -t visual-inspection-platform .
@@ -175,16 +317,16 @@ docker run --rm \
     visual-inspection-platform
 ```
 
-The container includes inference and serving dependencies without the model training stack.
+The container uses a multi-stage build and runs as a non-root user without model training dependencies.
+
+The default Dockerfile currently supports PCA inference. CAE deployment requires adding the `cae-inference` extra to the builder and runtime installation commands.
 
 ## Roadmap
-
-The platform is under active development, with successive milestones focused on expanding model capabilities, establishing comparable benchmarks and optimizing deployment.
 
 ### Models
 
 - [x] PCA reconstruction
-- [ ] Convolutional Autoencoder
+- [x] Convolutional Autoencoder
 - [ ] PaDiM
 - [ ] PatchCore
 - [ ] SimpleNet
@@ -194,26 +336,33 @@ The platform is under active development, with successive milestones focused on 
 
 ### Platform
 
-- [x] Common model and training interfaces
-- [x] Manifest-based datasets and shared preprocessing
-- [x] Model serialization and postprocessor calibration
-- [x] Segmentation evaluation framework
-- [x] Model management and HTTP serving
 - [ ] Reproducible multi-model benchmarks on VisA
 - [ ] Additional dataset integration (MVTec AD)
-- [ ] ONNX export and ONNX Runtime inference
+- [ ] Hyperparameter tuning and experiment comparison
+- [ ] GPU-accelerated inference
 - [ ] FP16 and INT8 inference optimization
 - [ ] CPU and GPU performance benchmarking
 
 ## Development
 
+Install the development environment:
+
 ```bash
 pip install -e ".[all]" --group dev
+```
 
+Run static checks and tests:
+
+```bash
 ruff check .
+ruff format --check .
 pytest
 ```
 
+The test suite covers model training, numerical correctness, artifact serialization, evaluation and serving integration, including PyTorch–ONNX Runtime numerical parity.
+
+Tests use synthetic data and CPU execution, requiring neither external datasets nor GPU hardware.
+
 ## License
 
-This project is licensed under the MIT License. External datasets are subject to their respective licenses.
+This project is licensed under the [MIT License](LICENSE). External datasets are subject to their respective licenses.

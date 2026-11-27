@@ -12,7 +12,7 @@ COPY visual_inspection_platform ./visual_inspection_platform
 
 RUN python -m pip wheel \
     --wheel-dir /wheels \
-    ".[serving]"
+    ".[serving,pca-inference,cae-inference]"
 
 
 FROM python:3.13-slim AS runtime
@@ -28,7 +28,7 @@ RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
         --no-cache-dir \
         --no-index \
         --find-links=/wheels \
-        "visual-inspection-platform[serving]" \
+        "visual-inspection-platform[serving,pca-inference,cae-inference]" \
     && useradd --create-home --uid 10001 appuser \
     && mkdir -p /models \
     && chown appuser:appuser /models
