@@ -129,11 +129,6 @@ class CAETrainer(Trainer[CAEDetector, CAEConfig]):
             if any(record.is_anomaly for record in dataset):
                 raise ValueError("Autoencoder training requires anomaly-free data")
 
-        if validation_data is not None and not {record.path for record in data}.isdisjoint(
-            record.path for record in validation_data
-        ):
-            raise ValueError("Training and validation datasets must be disjoint")
-
         if config.random_state is not None:
             seed_everything(config.random_state, workers=True)
 

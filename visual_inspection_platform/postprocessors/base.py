@@ -63,12 +63,6 @@ class Postprocessor(ABC):
                 f"Postprocessor kind mismatch: expected '{cls.KIND}', got '{manifest.kind}'"
             )
 
-        if manifest.version != cls.VERSION:
-            raise ValueError(
-                f"Postprocessor version mismatch: expected '{cls.VERSION}', "
-                f"got '{manifest.version}'"
-            )
-
         postprocessor = cls(**manifest.params)
         postprocessor._load(path)
 

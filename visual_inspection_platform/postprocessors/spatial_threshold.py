@@ -28,9 +28,6 @@ class SpatialThresholdPostprocessor(Postprocessor):
         self.offset = float(offset)
         self.thresholds = np.asarray(thresholds, dtype=np.float32)
 
-        if not np.isfinite(self.offset) or not np.isfinite(self.thresholds).all():
-            raise ValueError("Thresholds and offset must be finite")
-
     def __call__(self, maps: AnomalyMaps) -> BinaryMasks:
         if self.thresholds.shape != maps.shape[1:]:
             raise ValueError("Threshold map must match the anomaly map resolution")
@@ -51,6 +48,3 @@ class SpatialThresholdPostprocessor(Postprocessor):
 
     def _load(self, path: Path) -> None:
         self.thresholds = np.load(path / "thresholds.npy", allow_pickle=False)
-
-        if not np.isfinite(self.thresholds).all():
-            raise ValueError("Thresholds must be finite")

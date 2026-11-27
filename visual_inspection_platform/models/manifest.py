@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, JsonValue, PositiveInt, field_validator
+from pydantic import BaseModel, ConfigDict, JsonValue, PositiveInt
 
 from visual_inspection_platform.postprocessors import PostprocessorManifest
 from visual_inspection_platform.version import __version__
@@ -36,14 +36,6 @@ class ModelManifest(BaseModel):
     artifact_version: str
     package_version: str = __version__
     manifest_version: str = MANIFEST_VERSION
-
-    @field_validator("manifest_version")
-    @classmethod
-    def validate_manifest_version(cls, version: str) -> str:
-        if version != MANIFEST_VERSION:
-            raise ValueError(f"Unsupported manifest version: {version}")
-
-        return version
 
     @classmethod
     def load(cls, path: str | Path) -> Self:
