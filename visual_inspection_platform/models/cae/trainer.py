@@ -133,6 +133,7 @@ class CAETrainer(Trainer[CAEDetector, CAEConfig]):
         if config.random_state is not None:
             seed_everything(config.random_state, workers=True)
 
+        run_dir.mkdir(exist_ok=True, parents=True)
         config.save(run_dir / "config.json")
 
         train_loader, val_loader = self._create_dataloaders(data, validation_data)
