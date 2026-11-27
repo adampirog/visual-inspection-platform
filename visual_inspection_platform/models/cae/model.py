@@ -20,7 +20,7 @@ class CAEDetector(AnomalyDetector):
     averaged across color channels.
     """
 
-    MODEL_FAMILY = "autoencoder"
+    MODEL_FAMILY = "convolutional_autoencoder"
     ARTIFACT_VERSION = "1"
 
     def __init__(

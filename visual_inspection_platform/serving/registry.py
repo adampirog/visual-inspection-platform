@@ -64,4 +64,9 @@ def create_default_registry() -> ModelRegistry:
         module="visual_inspection_platform.models.pca.model",
         class_name="PCADetector",
     )
+    registry.register(
+        "convolutional_autoencoder",
+        module="visual_inspection_platform.models.cae.model",
+        class_name="CAEDetector",
+    )
     return registry

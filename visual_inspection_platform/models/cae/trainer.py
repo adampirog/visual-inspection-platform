@@ -1,12 +1,11 @@
-from collections.abc import Sequence
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Literal, override
 
 import torch
 from lightning.pytorch import Trainer as LightningTrainer
 from lightning.pytorch import seed_everything
 from lightning.pytorch.callbacks import (
-    Callback,
     EarlyStopping,
     LearningRateMonitor,
     ModelCheckpoint,
@@ -69,7 +68,7 @@ class CAEConfig(TrainerConfig):
         return size
 
 
-class AutoencoderTrainer(Trainer[CAEDetector, CAEConfig]):
+class CAETrainer(Trainer[CAEDetector, CAEConfig]):
     @override
     def fit(
         self,
@@ -77,7 +76,6 @@ class AutoencoderTrainer(Trainer[CAEDetector, CAEConfig]):
         *,
         validation_data: ImageRecordsDataset | None = None,
         run_dir: str | Path | None = None,
-        callbacks: Sequence[Callback] = (),
     ) -> CAEDetector:
         """Train and export a convolutional autoencoder detector.
 
@@ -88,14 +86,20 @@ class AutoencoderTrainer(Trainer[CAEDetector, CAEConfig]):
         model_id = generate_model_id(model_family=CAEDetector.MODEL_FAMILY)
 
         if run_dir is None:
-            run_dir = Path("runs") / model_id
+            temp_dir = TemporaryDirectory()
+            run_dir = Path(temp_dir.name)
+        else:
+            temp_dir = None
+            run_dir = Path(run_dir)
 
-        network = self.fit_network(
-            data, validation_data=validation_data, run_dir=run_dir, callbacks=callbacks
-        )
+        network = self.fit_network(data, validation_data=validation_data, run_dir=run_dir)
+        if temp_dir:
+            temp_dir.cleanup()
+
+        network_module = CAEAnomalyModule(network).eval()
 
         return CAEDetector(
-            onnx_model=export_anomaly_detector(CAEAnomalyModule(network), self.config.image_size),
+            onnx_model=export_anomaly_detector(network_module, self.config.image_size),
             image_size=self.config.image_size,
             model_id=model_id,
             training_metadata=self.get_metadata(),
@@ -104,10 +108,9 @@ class AutoencoderTrainer(Trainer[CAEDetector, CAEConfig]):
     def fit_network(
         self,
         data: ImageRecordsDataset,
+        run_dir: Path,
         *,
         validation_data: ImageRecordsDataset | None = None,
-        run_dir: str | Path,
-        callbacks: Sequence[Callback] = (),
     ) -> ConvolutionalAutoencoder:
         """Train and restore the best network in FP32 evaluation mode on CPU.
 
@@ -130,8 +133,6 @@ class AutoencoderTrainer(Trainer[CAEDetector, CAEConfig]):
         if config.random_state is not None:
             seed_everything(config.random_state, workers=True)
 
-        run_dir = Path(run_dir)
-        run_dir.mkdir(parents=True, exist_ok=False)
         config.save(run_dir / "config.json")
 
         train_loader, val_loader = self._create_dataloaders(data, validation_data)
@@ -150,6 +151,7 @@ class AutoencoderTrainer(Trainer[CAEDetector, CAEConfig]):
             monitor="val_loss",
             mode="min",
             save_top_k=1,
+            save_weights_only=True,
         )
 
         trainer = LightningTrainer(
@@ -171,7 +173,6 @@ class AutoencoderTrainer(Trainer[CAEDetector, CAEConfig]):
                     min_delta=config.early_stopping_min_delta,
                 ),
                 LearningRateMonitor(logging_interval="epoch"),
-                *callbacks,
             ],
         )
 
@@ -221,7 +222,7 @@ class AutoencoderTrainer(Trainer[CAEDetector, CAEConfig]):
         rng = (
             torch.Generator().manual_seed(config.random_state)
             if config.random_state is not None
-            else torch.default_generator
+            else None
         )
 
         return DataLoader(
